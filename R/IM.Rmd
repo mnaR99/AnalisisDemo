@@ -1,0 +1,109 @@
+---
+title: "Índice de Masculinidad"
+subtitle: "Análisis Demográfico"
+author: "Jacob Hernández"
+date: "`r Sys.Date()`"
+output: 
+  tint::tintHtml:
+    includes:
+      in_header: header.html
+bibliography: refs.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, fig.align = "center")
+library(tidyverse)
+library(hrbrthemes)
+```
+
+# Estadísticas de natalidad
+
+Acorde con las estadísticas vitales del 2018, el número de hombres nacidos en el Estado de México es de 102 por 
+cada 100 mujeres. Para efectos de mero aprendizaje los nacimientos registrados se consideran como registros
+oportunos, y no se considera la condición de sobrevivencia.
+
+```{r echo=FALSE}
+tribble(
+  ~Entidad, ~ Hombres, ~ Mujeres, ~ `Razón (H/M)`,
+  "México", 137299,	134385, 137299/134385
+) %>% 
+  knitr::kable(
+    caption = "**Nota:** Las cifras se refieren a los nacimientos registrados por entidad federativa de residencia habitual de la madre."
+  )
+```
+
+Debido a los supuestos que tuvieron que hacerse y a que este indicador demográfico describe de manera transversal 
+la estructura de una población, una fuente *más correcta* sería usar el censo de población o la encuesta intercensal 
+del 2015.
+
+# Encuesta Intercensal 2015
+
+A causa de que el siguiente análisis requiere las edades desplegadas por municipio, se ocupan los microdatos 
+proporcionados por el INEGI, y que al ser archivos de gran tamaño, la manera más eficiente de trabajar con ellos es 
+pre-procesarlos en partes, principalmente porque no se ocupará todo el conjunto de datos. 
+
+En el siguiente código se define un pre-filtro y la pre-selección de variables:
+
+```{r cache=TRUE}
+cbFilter <- function(x, pos) filter(x, MUN == "118")
+
+eic15_118 <- read_csv_chunked(
+  file = here::here("data", "TR_PERSONA15.csv"), 
+  callback = DataFrameCallback$new(cbFilter),
+  col_types = cols_only(
+    MUN = col_character(), 
+    NOM_MUN = col_character(), 
+    FACTOR = col_double(), 
+    EDAD = col_double(), 
+    SEXO = col_double()
+  ),
+  chunk_size = 25000
+)
+
+im2 <- 
+  eic15_118 %>% 
+  mutate(
+    EDAD = ifelse(EDAD >= 80 & EDAD < 999, "80 y más", EDAD),
+    SEXO = ifelse(SEXO == 1, "hm", "mj")
+  ) %>% 
+  count(mun = NOM_MUN, edad = EDAD, SEXO, wt = FACTOR) %>% 
+  pivot_wider(names_from = "SEXO", values_from = "n") %>% 
+  mutate(
+    im = hm/mj * 100
+  )
+```
+
+```{r echo=FALSE, dpi=300}
+im2 %>% 
+  filter(edad %in% c(1:8*10,"80 y más")) %>%
+  ggplot(aes(edad, im, group = 1)) +
+    geom_col(fill = "#E15759") +
+    scale_y_continuous(breaks = c(0,60,80,100), minor_breaks = c(70,90)) +
+    labs(
+      x = "Edad",
+      y = "Número de Hombres por cada 100 Mujeres",
+      title = "Índice de Masculinidad",
+      subtitle = "Municipio de Zinacantepec, México",
+      caption = "INEGI. Encuesta Intercensal 2015"
+    ) +
+    theme_ipsum_rc() +
+    theme(
+      panel.grid.major.x = element_blank()
+    )
+```
+
+## Resultados
+
+De acuerdo con los datos presentados, se observa una mayor presencia de mujeres en todos los casos menos uno, 
+en la edad de 20 años esta razón es aproximadamente de 1 a 1. Además, se puede apreciar que para las edades 
+superiores a los 60 años el número de hombres se va reduciendo con la edad alcanzando un mínimo de 67.8 por 
+cada 100 mujeres para las personas más longevas, esto debido a la diferencia en la esperanza de vida.
+
+Finalmente, en la gráfica se observan relativamente grandes diferencias en las edades adultas, de 30 a 50 años, 
+situación que puede estar asociada a diversos factores. Según @rionda_ramirez_migracion_2000, el bajo índice de 
+masculinidad presente en la región centro del país, conforme a los datos del Conteo de Población del 2005, esta 
+relacionado con el nivel de migración nacional de los varones, que en ese entonces tenían entre 16 y 36 años, 
+este resultado podría explicar de manera parcial el comportamiento descrito al inicio del párrafo pues la diferencia 
+periódica así lo permitiría, claro esta si se considera que la población en este intervalo tiene una estructura 
+similar.
