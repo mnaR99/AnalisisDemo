@@ -33,10 +33,6 @@ tribble(
   )
 ```
 
-Debido a los supuestos que tuvieron que hacerse y a que este indicador demográfico describe de manera transversal 
-la estructura de una población, una fuente *más correcta* sería usar el censo de población o la encuesta intercensal 
-del 2015.
-
 # Encuesta Intercensal 2015
 
 A causa de que el siguiente análisis requiere las edades desplegadas por municipio, se ocupan los microdatos 
