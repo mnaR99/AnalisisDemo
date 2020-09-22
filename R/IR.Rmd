@@ -1,0 +1,176 @@
+---
+title: "Índice de Irregularidad"
+subtitle: "Análisis Demográfico"
+author: "Jacob Hernández"
+date: "`r Sys.Date()`"
+output: 
+  tint::tintHtml:
+    includes:
+      in_header: header.html
+bibliography: refs.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(tidyverse)
+library(hrbrthemes)
+```
+
+```{marginfigure}
+Para la edad de $x$ años el índice de irregularidad es:
+
+$$ IR_x = \dfrac{N_x}{\frac{1}{5}(N_{x-2}+N_{x-1}+N_{x}+N_{x+1}+N_{x+2})} $$
+  
+Si el índice es igual a uno resultaría que no existe redondeo, mientras que la evidencia de éste crecería 
+a medida que el índice superara la unidad.
+```
+
+Un indicador muy simple para medir la exactitud en la declaración de la edad consiste en relacionar el 
+número de censados en la edad redonda con una media de los censados en el grupo de edad que la contiene 
+como centro (grupos quinquenales o trienales, este último muy poco frecuente). 
+
+La hipótesis es que, a grandes rasgos, la población en los intervalos considerados debería distribuirse
+linealmente y por lo tanto la población en la edad redonda debería ser equivalente a la media de los
+contingentes anuales correspondientes al grupo de edad centrado en dicha edad.
+
+## Ejemplo
+
+Para efectos de aprendizaje, se analizan los siguientes datos que corresponderían a una población ficticia.
+
+```{r}
+rand_pop <- tibble(
+  edad = 27:42, 
+  Hombres = c(204887, 218530, 161706, 275769, 159381, 184331, 166283, 171636, 
+              196118, 189572, 157465, 171137, 120363, 301591, 126385, 157317), 
+  Mujeres = c(205113, 225793, 152857, 320207, 139366, 181088, 157010, 169101, 
+              206268, 188374, 151218, 168920, 113733, 331912, 110329, 149641)
+)
+
+ir1 <- 
+  rand_pop %>% 
+  pivot_longer(2:3, names_to = "sexo", values_to = "pob") %>% 
+  arrange(sexo, edad) %>% 
+  group_by(sexo) %>% 
+  mutate(
+    ir = pob/zoo::rollmean(pob, k = 5, align = "center", fill = NA)
+  )
+```
+
+```{r echo=FALSE, fig.align="center"}
+ir1 %>% 
+  ggplot(aes(edad, ir - 1, fill = (edad %% 5 == 0))) +
+    facet_wrap(~sexo) +
+    geom_col(show.legend = F, color = NA) +
+    scale_x_continuous(breaks = 6:8*5, minor_breaks = NULL) +
+    scale_fill_manual(values = c("grey", "#337AB7")) +
+    labs(
+      x = "Edad",
+      y = "IR - 1",
+      title = "Índice de irregularidad en la declaración de la edad (IR)",
+      subtitle = "Población Ficticia"
+    ) +
+    theme_ipsum_rc() +
+    theme(
+      # axis.text.y = element_blank(),
+      # axis.ticks.y = element_blank(),
+      # panel.grid.major.y = element_blank(),
+      panel.grid.minor.y = element_blank()
+    )
+```
+
+De acuerdo con la hipótesis general se concluye lo siguiente:
+
+```{r echo=FALSE}
+ir1 %>% 
+  filter(edad %in% c(30,35,40)) %>% 
+  select(-pob) %>%
+  pivot_wider(names_from = "sexo", values_from = "ir") %>% 
+  janitor::clean_names(case = "title") %>% 
+  knitr::kable()
+```
+
+* Existe una preferencia de redondeo hacia las edades de 30, 35 y 40.
+* Además, resulta ser más común la práctica al dígito 0 y con mayor frecuencia en edades que rondan los 40 años. 
+* Adicionalmente, para esta población se diría que este comportamiento es más habitual en las mujeres.
+
+# Censo de Población 2010
+
+Con datos del Censo del 2010 correspondientes al Estado de México, obtener los datos del municipio no. 118 y 
+calcular el indice de irregularidad para las edades 5 y 10 años, así como 60 y 65 años.
+
+```{r}
+edomex_raw <- readxl::read_excel(
+  path = here::here("data","01_03B_MUNICIPAL_15.xls"), 
+  col_names = c("entidad","municipio","edad","Total","Hombres","Mujeres"), 
+  skip = 8, 
+  n_max = 12883
+)
+
+edomex <- 
+  edomex_raw %>% 
+  pivot_longer(Total:Mujeres, names_to = "sexo", values_to = "pob") %>% 
+  filter(
+    sexo != "Total",
+    !edad %in% c("Total", "No especificado")
+  ) %>% 
+  mutate(edad = parse_number(edad)) %>% 
+  arrange(municipio, sexo, edad)
+
+ir2 <- 
+  edomex %>% 
+  group_by(municipio, sexo) %>% 
+  mutate(
+    ir = pob/zoo::rollmean(pob, k = 5, align = "center", fill = NA)
+  ) %>% 
+  ungroup()
+```
+
+```{r echo=FALSE, fig.margin=TRUE, fig.asp=2}
+ir2 %>% 
+  filter(
+    str_detect(municipio, "118"), 
+    between(edad, 2, 68)
+  ) %>% 
+  ggplot(aes(edad, ir - 1, fill = (edad %% 5 == 0))) +
+    facet_wrap(~sexo, ncol = 1) +
+    geom_col(show.legend = F, color = NA) +
+    scale_x_continuous(breaks = 1:6*10) +
+    scale_fill_manual(values = c("grey", "#337AB7")) +
+    labs(
+      x = "Edad",
+      y = "IR - 1",
+      title = "Índice de irregularidad en la declaración de la edad (IR)",
+      subtitle = "Municipio de Zinacantepec, México",
+      caption = "INEGI. Censo de Población y Vivienda 2010\nTabulados del Cuestionario Básico"
+    ) +
+    theme_ipsum_rc()+
+    theme(
+      panel.grid.minor.x = element_blank(),
+      panel.grid.minor.y = element_blank()
+    )
+```
+
+## Resultados
+
+Utilizando los datos referentes al municipio de Zinacantepec (118), Estado de México, se observa lo siguiente:
+
+```{r echo=FALSE}
+ir2 %>% 
+  filter(
+    str_detect(municipio, "118"), 
+    edad %in% c(5,10,17,18,20,60,65)
+  ) %>% 
+  select(-pob) %>%
+  pivot_wider(names_from = "sexo", values_from = "ir") %>% 
+  janitor::clean_names(case = "title") %>% 
+  knitr::kable()
+```
+
+* Tanto en hombres como mujeres existe una preferencia de redondeo en la edad a los dígitos 0 y 5, no 
+obstante esta práctica es menos común en las mujeres.
+* Este comportamiento aparenta tener inicio a los 20 años y se vuelve más habitual conforme las personas crecen.
+* Los varones declaran en mayor frecuencia tener la mayoría de edad, aunque esto no sea siempre verdadero.
+* Los índices relativos a los menores de edad parecen estar dados por casualidad o más bien por verdaderos
+efectos de la estructura poblacional, es decir, no se rechazaría la hipótesis de que en estas edades no existe 
+preferencia alguna al redondeo.
