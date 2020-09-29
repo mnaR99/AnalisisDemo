@@ -31,7 +31,7 @@ En la ecuación $k,h$ y $c$ son los parámetros del modelo, y $t$ es una medida 
 $\frac{1}{k}$ es la asíntota.
 ```
 
-Debido a que el crecimiento de una población a una tasa constantes es poco probable en poblaciones humanas, 
+Debido a que el crecimiento de una población a una tasa constante es poco probable en poblaciones humanas, 
 varios modelos matemáticos que consideran un límite superior (asíntota) al tamaño de la población son 
 considerados más apropiados. Uno de los modelos asintóticos comunmente usados es el modelo logístico.
 
@@ -192,20 +192,20 @@ iraq_growth %>%
     )
 ```
 
-El modelo proyecta una población para el 2010 de 29.825 millones, superior a la reportada en los datos, sin embargo
-la diferencia no es muy grande comparada con la proyección del año 2015, que tiene una diferencia de más de 2 millones, 
-resultado que indica un cambio en la tendencia poblacional. 
+El modelo proyecta una población para el 2010 de 29.825 millones, superior a la reportada en los datos, sin embargo la 
+diferencia no es muy grande comparada con la proyección del año 2015, que tiene un residuo de más de 2 millones, resultado 
+que indica un cambio en la tendencia poblacional. 
 
 Lo curioso es que, Iraq es un país que a inicios del siglo XXI fue el centro de atención y conflicto bélico internacional, 
 mismo que concluyó a finales del 2011, dejando un desastre social, económico y humano en la nación iraquí. Como consecuencia 
 la destrucción, la corrupción y la inseguridad condujeron al país a tener elevadas tasas de desempleo. Lo anterior da pie
-a entender que el incremento poblacional no pudo haberse dado por un incremento en las tasas de natalidad, pues la situación
+a entender que el crecimiento poblacional no pudo haberse dado por un incremento en las tasas de natalidad, pues la situación
 social no lo sustentaría, además, debido al número de bajas de guerra estas deberían ser increíblemente superiores a los años
-anteriores para apoyar el incremento poblacional. 
+anteriores para apoyar el aumento de la población. 
 
 Al mismo tiempo que concluía la guerra de Iraq, otro conflicto estaba iniciando en la nación vecina, Siria. Esto obligó a los
 miles de iraquíes que habían huido de la guerra en su país a volver a casa junto a miles de sirios que huían de los nuevos 
-combates. Así, el motivo más lógica en el incremento poblacional no explicado por el modelo logístico se daría por el 
+combates. Así, el motivo más lógico en el crecimiento poblacional no explicado por el modelo logístico se daría por el 
 incremento en el saldo migratorio del país.
 
 ```{r echo=FALSE}
