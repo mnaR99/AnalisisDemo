@@ -1,0 +1,221 @@
+---
+title: "Modelo de crecimiento logístico"
+subtitle: "Análisis Demográfico"
+author: "Jacob Hernández"
+date: "`r Sys.Date()`"
+output: 
+  tint::tintHtml:
+    includes:
+      in_header: header.html
+bibliography: refs.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "ragg_png")
+
+library(tidyverse)
+library(hrbrthemes)
+library(scales)
+
+theme_set(theme_ipsum_rc())
+theme_update(
+  plot.background = element_rect(fill = "#FEFEFE", color = NA),
+  panel.grid.minor.x = element_blank()
+)
+```
+
+```{marginfigure}
+$$P_t = \dfrac{1}{k + h\cdot c^t}$$
+En la ecuación $k,h$ y $c$ son los parámetros del modelo, y $t$ es una medida del tiempo. Para este modelo, 
+$\frac{1}{k}$ es la asíntota.
+```
+
+Debido a que el crecimiento de una población a una tasa constantes es poco probable en poblaciones humanas, 
+varios modelos matemáticos que consideran un límite superior (asíntota) al tamaño de la población son 
+considerados más apropiados. Uno de los modelos asintóticos comunmente usados es el modelo logístico.
+
+La asíntota es una constante matemática para un conjunto dado de datos de población, siempre que las 
+tendencias pasadas continúen prevaleciendo en el futuro. Bajo estas condiciones, indica el tamaño máximo 
+posible de una población en el futuro si continúa siguiendo el modelo.
+
+## Método de Totales Parciales
+
+Existen varios procedimientos para ajustar el modelo a partir de datos. Uno de esos procedimientos es el 
+método de totales parciales.
+
+```{marginfigure}
+Si el número de observaciones no es múltiplo de 3, entonces se deben descartar una o dos observaciones.
+
+Si el residuo es 1, entonces se debe descartar una observación al principio o al final.
+
+Cuando el residuo es 2, entonces una observación al principio y una al final, o ambas al principio o ambas 
+al final, deben descartarse.
+
+**Nota:** En este caso se descartan la primera (1 y 2) y la final (2).
+```
+
+```{r}
+logmodel <- function(training, date_col = "date", pop_col = "pop"){
+  
+  data <- as.data.frame(training)
+  
+  nr <- nrow(data)
+  n <- nr %/% 3
+   
+  if (nr %% 3 == 1) {
+    data <- data[-1,]
+  } else if (nr %% 3  == 2) {
+    data <- data[-c(1,nr),]
+  }
+  
+  fd <- data[1, date_col]
+  dd <- diff(data[1:2, date_col])
+  
+  s <- map_dbl(0:2, ~sum(1/data[1:n + .x*n, pop_col]))
+  
+  c <- ((s[3]-s[2])/(s[2]-s[1]))**(1/n)
+  h <- (s[2]-s[1])*(c-1)/(c**n-1)**2
+  k <- 1/n*(s[1]-(c**n-1)/(c-1)*h)
+  
+  function(date) 1/(k+h*c**((date-fd)/dd))
+
+}
+```
+
+# Serie Histórica Censal de México
+
+Como primer ejercicio se proyecta la población, según datos del INEGI, del estado de Durango (10).
+
+```{r}
+mexico10_pop <- tibble(
+  date = seq(1950, 2010, 10),
+  pop = c(629874, 760836, 939208, 1182320, 1349378, 1448661, 1632934)
+)
+
+model1 <- logmodel(mexico10_pop[1:6,])
+
+mexico10_growth <-
+  mexico10_pop %>% 
+  mutate(
+    .pophat = model1(date),
+    .resid = pop - .pophat
+  )
+```
+
+## Resultados
+
+```{r echo=FALSE, fig.margin = TRUE}
+mexico10_growth %>% 
+  mutate(r = row_number()) %>% 
+  ggplot(aes(date, pop)) +
+    stat_function(fun = model1, geom = "area", alpha = 0.8, fill = "#6CC8B1") +
+    geom_line() +
+    geom_point(shape = 21, fill = "#FFFFFF") +
+    scale_y_continuous(breaks = c(4e5, 8e5, 12e5, 16e5), labels = c(4,8,12,16)) +
+    expand_limits(y = 0) +
+    scale_x_continuous(breaks = seq(1950, 2010, 10)) +
+    labs(
+      x = "Año", 
+      y = "Cientos de miles de habitantes",
+      title = "Proyección de población, Estado de Durango",
+      subtitle = "Modelo de crecimiento logístico",
+      caption = "INEGI. Censos de Población y Vivienda"
+    )
+```
+
+Según el modelo ajustado, la población en el año 2010 sería de 1.614 millones, menor al verdadero tamaño 
+reportado en el censo del mismo año. Al observar el gráfico de las poblaciones ajustadas podríamos tomar 
+como válido el resultado para poder afirmar que esta entidad mantuvo el modelo de crecimiento en el 
+siguiente censo. 
+
+```{r echo=FALSE}
+mexico10_growth %>%
+  mutate(
+    entidad = "10 Durango", .before = 1,
+    across(pop, ~comma(., accuracy = 1)),
+    across(.pophat:.resid, ~comma(., accuracy = 0.01))
+  ) %>%
+  set_names(c("Entidad", "Año", "Población", "Población proyectada", "Residuo")) %>% 
+  kableExtra::kable(align = "lcrrr")
+```
+
+# World Bank Data
+
+El siguiente modelo se ajustará para el país de Iraq con la información correspondiente a los años de 1960, 
+1965, ..., 2005, proporcionada por el Banco Mundial. 
+
+Una forma que simplifica la consulta y análisis de los datos es por medio de la API proporcionada por el mismo 
+sitio y que actualmente, el paquete `wbstats` integra su uso en R. Véase @wbstats para más información.
+
+```{r cache=TRUE}
+iraq_pop_raw <- wbstats::wb_data(
+  indicator = "SP.POP.TOTL", 
+  country = "Iraq", 
+  start_date = 1960, 
+  end_date = 2015
+)
+
+iraq_pop <- 
+  iraq_pop_raw %>% 
+  select(3:5) %>% 
+  rename(pop = SP.POP.TOTL) %>% 
+  filter(date %% 5 == 0)
+
+model2 <- logmodel(training = filter(iraq_pop, date <= 2005))
+
+iraq_growth <-
+  iraq_pop %>% 
+  mutate(
+    .pophat = model2(date),
+    .resid = pop - .pophat
+  )
+```
+
+## Resultados
+
+```{r echo=FALSE, fig.margin = TRUE}
+iraq_growth %>% 
+  ggplot(aes(date, pop)) +
+    stat_function(fun = model2, geom = "area", alpha = 0.8, fill = "#6CC8B1") +
+    geom_line() +
+    geom_point(shape = 21, fill = "#FFFFFF") +
+    scale_y_continuous(breaks = c(10e6, 20e6, 30e6), labels = c(10, 20, 30)) +
+    expand_limits(y = 0) +
+    scale_x_continuous(breaks = seq(1960, 2010, 10)) +
+    labs(
+      x = "Año", 
+      y = "Millones de habitantes",
+      title = "Proyección de población, Iraq",
+      subtitle = "Modelo de crecimiento logístico",
+      caption = "Banco Mundial. Población total"
+    )
+```
+
+El modelo proyecta una población para el 2010 de 29.825 millones, superior a la reportada en los datos, sin embargo
+la diferencia no es muy grande comparada con la proyección del año 2015, que tiene una diferencia de más de 2 millones, 
+resultado que indica un cambio en la tendencia poblacional. 
+
+Lo curioso es que, Iraq es un país que a inicios del siglo XXI fue el centro de atención y conflicto bélico internacional, 
+mismo que concluyó a finales del 2011, dejando un desastre social, económico y humano en la nación iraquí. Como consecuencia 
+la destrucción, la corrupción y la inseguridad condujeron al país a tener elevadas tasas de desempleo. Lo anterior da pie
+a entender que el incremento poblacional no pudo haberse dado por un incremento en las tasas de natalidad, pues la situación
+social no lo sustentaría, además, debido al número de bajas de guerra estas deberían ser increíblemente superiores a los años
+anteriores para apoyar el incremento poblacional. 
+
+Al mismo tiempo que concluía la guerra de Iraq, otro conflicto estaba iniciando en la nación vecina, Siria. Esto obligó a los
+miles de iraquíes que habían huido de la guerra en su país a volver a casa junto a miles de sirios que huían de los nuevos 
+combates. Así, el motivo más lógica en el incremento poblacional no explicado por el modelo logístico se daría por el 
+incremento en el saldo migratorio del país.
+
+```{r echo=FALSE}
+iraq_growth %>%
+  filter(date > 2005) %>%
+  mutate(
+    across(pop, ~comma(., accuracy = 1)),
+    across(.pophat:.resid, ~comma(., accuracy = 0.01))
+  ) %>%
+  set_names(c("País", "Año", "Población", "Población proyectada", "Residuo")) %>% 
+  kableExtra::kable(align = "lcrrr") 
+```
+
