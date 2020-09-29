@@ -6,3 +6,7 @@ Trabajos y proyectos del curso Análisis Demográfico
 
 * [Índice de Irregularidad](https://mnar99.github.io/AnalisisDemo/R/IR)
 * [Índice de Masculinidad](https://mnar99.github.io/AnalisisDemo/R/IM)
+
+## Ejercicio 2
+
+* [Modelo Logístico](https://mnar99.github.io/AnalisisDemo/R/MD_LOG)
