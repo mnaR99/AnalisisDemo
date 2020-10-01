@@ -90,8 +90,8 @@ projections <- data %>%
 ```{r echo=FALSE, fig.margin = TRUE}
 projections %>% 
   ggplot(aes(t, P)) +
-    stat_function(fun = mod2, geom = "area", fill = "#F28E2C", alpha = 0.2) +
-    stat_function(fun = mod1, geom = "area", fill = "#4E79A7", alpha = 0.2) +
+    stat_function(fun = mod2, geom = "area", fill = "#F28E2C", alpha = 0.3) +
+    stat_function(fun = mod1, geom = "area", fill = "#4E79A7", alpha = 0.5) +
     geom_line() +
     geom_point(shape = 21, fill = "#FFFFFF") +
     expand_limits(y = 0) +
@@ -103,7 +103,9 @@ projections %>%
       x = "Año"
       ) +
     theme(
-      plot.subtitle = element_markdown()
+      plot.subtitle = element_markdown(),
+      panel.grid.major = element_line(linetype = 2),
+      panel.grid.minor = element_line(linetype = 2)
     )
 ```
 
