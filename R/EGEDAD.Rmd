@@ -82,7 +82,7 @@ pob15_74 %>%
   ) %>% 
   knitr::kable(
     align = "clcrrr", 
-    col.names = c("No.", "Municipio", "Grupo Quiquenal", "Población", "Distribución", "Distribución Acumulada"), 
+    col.names = c("No.", "Municipio", "Grupo Quinquenal", "Población", "Distribución", "Distribución Acumulada"), 
     caption = "**Tabla 1**<br>*Estructura por grupos quinquenales del municipio San Felipe del Progreso (074), Estado de México, 2015.*"
   ) %>% 
   collapse_rows(columns = 1:2, valign = "mid") %>% 
