@@ -14,3 +14,7 @@ Trabajos y proyectos del curso Análisis Demográfico
 ## Semana 3
 
 * [Modelo Logístico y de Gompertz](https://mnar99.github.io/AnalisisDemo/R/AC01)
+
+## Semana 4
+
+* [Estructura por edad y sexo](https://mnar99.github.io/AnalisisDemo/R/EGEDAD)
