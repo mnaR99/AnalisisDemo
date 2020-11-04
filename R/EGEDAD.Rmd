@@ -1,0 +1,157 @@
+---
+title: "Estructura por grupos de edad"
+subtitle: "Análisis Demográfico"
+author: "Jacob Hernández"
+date: "`r Sys.Date()`"
+output: 
+  tint::tintHtml:
+    includes:
+      in_header: header.html
+bibliography: refs.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "ragg_png")
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+library(hrbrthemes)
+library(ggtext)
+library(patchwork)
+library(kableExtra)
+
+theme_set(theme_ipsum_rc())
+theme_update(
+  plot.background = element_rect(fill = "#FEFEFE", color = NA),
+  panel.grid.minor.x = element_blank(),
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  axis.text.y = element_text(hjust = 0.5),
+  legend.position = "none",
+)
+```
+
+## Encuesta Intercensal 2015, México
+
+```{r cache=TRUE}
+cbFilter <- function(x, pos) filter(x, MUN == "074")
+
+eic15_74 <- 
+  read_csv_chunked(
+    file = here::here("data", "TR_PERSONA15.csv"),
+    callback = DataFrameCallback$new(cbFilter),
+    col_types = cols_only(
+      MUN = col_character(), 
+      NOM_MUN = col_character(), 
+      FACTOR = col_double(), 
+      EDAD = col_double(), 
+      SEXO = col_double()
+    ),
+  chunk_size = 25000
+  ) %>% 
+  janitor::clean_names()
+```
+
+# Estructura por grupos de edad
+
+```{r}
+pob15_74 <- eic15_74 %>% 
+  filter(edad != 999) %>% 
+  mutate(
+    gedad = santoku::chop(
+      edad, breaks = seq(0, 80, 5), 
+      labels = santoku::lbl_discrete()
+    )
+  ) %>% 
+  count(mun, nom_mun, gedad, wt = factor, name = "pob") %>% 
+  mutate(
+    prop = pob/sum(pob),
+    cumprop = cumsum(prop)
+  )
+```
+
+```{r echo=FALSE}
+pob15_74 %>% 
+  mutate(
+    pob = scales::comma(pob),
+    prop = scales::percent(prop),
+    cumprop = scales::percent(cumprop)
+  ) %>% 
+  knitr::kable(
+    align = "clcrrr", 
+    col.names = c("No.", "Municipio", "Grupo Quiquenal", "Población", "Distribución", "Distribución Acumulada"), 
+    caption = "**Tabla 1**<br>Estructura por grupos quinquenales del municipio San Felipe del Progreso (074), Estado de México."
+  ) %>% 
+  kableExtra::footnote(
+    "Se omiten registros donde la edad no es especificada.",
+    general_title = "Nota"
+  )
+```
+
+## Resultados
+
+De acuerdo con la distribución acumulada de la población, podemos concluir que este municipio
+se caracteriza por tener una población joven, tan sólo el 46.16% de su población se encuentra
+por debajo de los 20 años. Tomando en cuenta que la población activa sean aquellas personas entre
+los 15 y 60 años el porcentaje de la población en este grupo sería del 57.62%, resultando que 
+esta población cuenta con un "bono demográfico", aunque realmente sería mejor el término indicios 
+de un futuro bono demográfico, pues este cálculo se ve sustentado sobre todo por el alto número de 
+personas entre los 15 y 25 años.
+
+## Estructura por grupos de edad y sexo
+
+```{r}
+egedadsexo <- 
+  eic15_74 %>% 
+  filter(edad != 999) %>% 
+  mutate(
+    gedad = santoku::chop(
+      edad, breaks = seq(0, 80, 5), 
+      labels = santoku::lbl_discrete()
+    ),
+    sexo = ifelse(sexo == 1, "Hombres", "Mujeres")
+  ) %>% 
+  count(mun, nom_mun, sexo, gedad, wt = factor, name = "pob") %>%
+  group_by(sexo) %>% 
+  mutate(prop = pob/sum(pob))
+```
+
+```{r echo=FALSE, fig.dim=c(12,8)}
+egedadsexo %>% 
+  ggplot(aes(gedad)) +
+    geom_col(aes(y = pob)) +
+    geom_col(aes(y = -pob)) +
+    facet_wrap(~sexo) +
+    coord_flip() +
+    scale_y_continuous(labels = scales::trans_format(abs, scales::comma_format())) +
+    labs(
+      subtitle = "San Felipe del Progreso, México",
+      title = "Población en valores absolutos"
+    )
+```
+
+## Resultados
+
+Los registros y las gráficas indican que en este municipio la población es joven, la población 
+de infantes es aún mayor que la de adultos. Además, la presencia de mujeres adultas es mayor 
+aunque no en gran medida; este resultado se contrasta con el análisis del segundo gráfico, donde 
+se puede observar que la mayoría de los hombres se concentra en mayor medida en los varones 
+menores a los 25 años, mientras que la distribución por edad de las mujeres es más regular.
+
+```{r echo=FALSE, fig.dim=c(12,8)}
+egedadsexo %>% 
+  ggplot(aes(gedad)) +
+    geom_col(aes(y = prop)) +
+    geom_col(aes(y = -prop)) +
+    facet_wrap(~sexo) +
+    coord_flip() +
+    scale_y_continuous(labels = scales::trans_format(abs, scales::percent_format())) +
+    labs(
+      subtitle = "San Felipe del Progreso, México",
+      title = "Población en valores relativos por sexo"
+    )
+```
+
+
+
