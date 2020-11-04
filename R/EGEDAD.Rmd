@@ -97,8 +97,8 @@ De acuerdo con la distribución acumulada de la población, podemos concluir que
 se caracteriza por tener una población joven, tan sólo el 46.16% de su población se encuentra
 por debajo de los 20 años. 
 
-Tomando en cuenta que la población en edad de trabajar sean aquellas personas entre los 15 y 60 
-años, el porcentaje de la población en este grupo sería del 57.62%, resultando que esta población 
+Tomando en cuenta que la población en edad de trabajar son aquellas personas entre los 15 y 60 
+años, el porcentaje de la población en este grupo sería del 57.62%, indicando que esta población 
 cuenta con un bono demográfico^[Periodo donde la población activa e inactiva en edad de trabajar 
 superan en cantidad a las personas económicamente dependientes (niños y adultos mayores).], aunque 
 realmente sería mejor el término *indicios de un futuro* bono demográfico, pues este cálculo
