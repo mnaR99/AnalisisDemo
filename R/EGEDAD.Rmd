@@ -1,5 +1,5 @@
 ---
-title: "Estructura por grupos de edad"
+title: "Estructura por grupos de edad y sexo"
 subtitle: "Análisis Demográfico"
 author: "Jacob Hernández"
 date: "`r Sys.Date()`"
@@ -99,7 +99,7 @@ esta población cuenta con un "bono demográfico", aunque realmente sería mejor
 de un futuro bono demográfico, pues este cálculo se ve sustentado sobre todo por el alto número de 
 personas entre los 15 y 25 años.
 
-## Estructura por grupos de edad y sexo
+# Estructura por grupos de edad y sexo
 
 ```{r}
 egedadsexo <- 
@@ -119,15 +119,17 @@ egedadsexo <-
 
 ```{r echo=FALSE, fig.dim=c(12,8)}
 egedadsexo %>% 
-  ggplot(aes(gedad)) +
+  ggplot(aes(gedad, fill = sexo)) +
     geom_col(aes(y = pob)) +
     geom_col(aes(y = -pob)) +
     facet_wrap(~sexo) +
     coord_flip() +
     scale_y_continuous(labels = scales::trans_format(abs, scales::comma_format())) +
+    scale_fill_manual(values = c("#EDC949","#B07AA2")) +
     labs(
       subtitle = "San Felipe del Progreso, México",
-      title = "Población en valores absolutos"
+      title = "Población en valores absolutos",
+      caption = "INEGI. Encuesta Intercensal 2015"
     )
 ```
 
@@ -135,21 +137,24 @@ egedadsexo %>%
 
 Los registros y las gráficas indican que en este municipio la población es joven, la población 
 de infantes es aún mayor que la de adultos. Además, la presencia de mujeres adultas es mayor 
-aunque no en gran medida; este resultado se contrasta con el análisis del segundo gráfico, donde 
-se puede observar que la mayoría de los hombres se concentra en mayor medida en los varones 
-menores a los 25 años, mientras que la distribución por edad de las mujeres es más regular.
+que la de hombres aunque no en gran medida; este resultado se contrasta con el análisis del 
+segundo gráfico, donde se puede observar que la mayoría de los hombres se concentra en mayor 
+medida en los varones menores a los 25 años, mientras que la distribución por edad de las mujeres 
+es más regular.
 
 ```{r echo=FALSE, fig.dim=c(12,8)}
 egedadsexo %>% 
-  ggplot(aes(gedad)) +
+  ggplot(aes(gedad, fill = sexo)) +
     geom_col(aes(y = prop)) +
     geom_col(aes(y = -prop)) +
     facet_wrap(~sexo) +
     coord_flip() +
     scale_y_continuous(labels = scales::trans_format(abs, scales::percent_format())) +
+    scale_fill_manual(values = c("#EDC949","#B07AA2")) +
     labs(
       subtitle = "San Felipe del Progreso, México",
-      title = "Población en valores relativos por sexo"
+      title = "Población en valores relativos por sexo",
+      caption = "INEGI. Encuesta Intercensal 2015"
     )
 ```
 
