@@ -525,9 +525,9 @@ eic15_74 &lt;-
 <pre class="r"><code>pob15_74 &lt;- eic15_74 %&gt;% 
   filter(edad != 999) %&gt;% 
   mutate(
-    gedad = santoku::chop(
+    gedad = chop(
       edad, breaks = seq(0, 80, 5), 
-      labels = santoku::lbl_discrete()
+      labels = lbl_discrete()
     )
   ) %&gt;% 
   count(mun, nom_mun, gedad, wt = factor, name = &quot;pob&quot;) %&gt;% 
@@ -538,7 +538,7 @@ eic15_74 &lt;-
 <div id="resultados" class="section level2">
 <h2>Resultados</h2>
 <p><!--
-<caption>--><span class="marginnote shownote"><strong>Tabla 1</strong><br>Estructura por grupos quinquenales del municipio San Felipe del Progreso (074), Estado de México.</span><!--</caption>--></p>
+<caption>--><span class="marginnote shownote"><strong>Tabla 1</strong><br><em>Estructura por grupos quinquenales del municipio San Felipe del Progreso (074), Estado de México, 2015.</em></span><!--</caption>--></p>
 <table>
 
 
@@ -813,18 +813,13 @@ San Felipe del Progreso
 <tfoot>
 <tr>
 <td style="padding: 0; border: 0;" colspan="100%">
-<span style="font-style: italic;">Nota</span>
-</td>
-</tr>
-<tr>
-<td style="padding: 0; border: 0;" colspan="100%">
-<sup></sup> Se omiten registros donde la edad no es especificada.
+<span style="font-style: italic;">Nota:</span> <sup></sup> Se omiten registros donde la edad no es especificada.
 </td>
 </tr>
 </tfoot>
 </table>
 <p>De acuerdo con la distribución acumulada de la población, podemos concluir que este municipio se caracteriza por tener una población joven, tan sólo el 46.16% de su población se encuentra por debajo de los 20 años.</p>
-<p>Tomando en cuenta que la población activa sean aquellas personas entre los 15 y 60 años, el porcentaje de la población en este grupo sería del 57.62%, resultando que esta población cuenta con un “bono demográfico”, aunque realmente sería mejor el término indicios de un futuro bono demográfico, pues este cálculo se ve sustentado sobre todo por el alto número de personas entre los 15 y 25 años.</p>
+<p>Tomando en cuenta que la población en edad de trabajar sean aquellas personas entre los 15 y 60 años, el porcentaje de la población en este grupo sería del 57.62%, resultando que esta población cuenta con un bono demográfico<label for="tufte-sn-1" class="margin-toggle sidenote-number">1</label><input type="checkbox" id="tufte-sn-1" class="margin-toggle"><span class="sidenote"><span class="sidenote-number">1</span> Periodo donde la población activa e inactiva en edad de trabajar superan en cantidad a las personas económicamente dependientes (niños y adultos mayores).</span>, aunque realmente sería mejor el término <em>indicios de un futuro</em> bono demográfico, pues este cálculo se ve sustentado sobre todo por el alto número de personas entre los 15 y 25 años.</p>
 </div>
 </div>
 <div id="estructura-por-grupos-de-edad-y-sexo" class="section level1">
@@ -833,9 +828,9 @@ San Felipe del Progreso
   eic15_74 %&gt;% 
   filter(edad != 999) %&gt;% 
   mutate(
-    gedad = santoku::chop(
+    gedad = chop(
       edad, breaks = seq(0, 80, 5), 
-      labels = santoku::lbl_discrete()
+      labels = lbl_discrete()
     ),
     sexo = ifelse(sexo == 1, &quot;Hombres&quot;, &quot;Mujeres&quot;)
   ) %&gt;% 

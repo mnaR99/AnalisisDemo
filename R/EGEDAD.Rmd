@@ -17,8 +17,8 @@ options(knitr.kable.NA = '')
 
 library(tidyverse)
 library(hrbrthemes)
-library(ggtext)
-library(patchwork)
+library(santoku)
+library(scales)
 library(kableExtra)
 
 theme_set(theme_ipsum_rc())
@@ -59,9 +59,9 @@ eic15_74 <-
 pob15_74 <- eic15_74 %>% 
   filter(edad != 999) %>% 
   mutate(
-    gedad = santoku::chop(
+    gedad = chop(
       edad, breaks = seq(0, 80, 5), 
-      labels = santoku::lbl_discrete()
+      labels = lbl_discrete()
     )
   ) %>% 
   count(mun, nom_mun, gedad, wt = factor, name = "pob") %>% 
@@ -76,19 +76,20 @@ pob15_74 <- eic15_74 %>%
 ```{r echo=FALSE}
 pob15_74 %>% 
   mutate(
-    pob = scales::comma(pob),
-    prop = scales::percent(prop),
-    cumprop = scales::percent(cumprop)
+    pob = comma(pob),
+    prop = percent(prop),
+    cumprop = percent(cumprop)
   ) %>% 
   knitr::kable(
     align = "clcrrr", 
     col.names = c("No.", "Municipio", "Grupo Quiquenal", "Población", "Distribución", "Distribución Acumulada"), 
-    caption = "**Tabla 1**<br>Estructura por grupos quinquenales del municipio San Felipe del Progreso (074), Estado de México."
+    caption = "**Tabla 1**<br>*Estructura por grupos quinquenales del municipio San Felipe del Progreso (074), Estado de México, 2015.*"
   ) %>% 
   collapse_rows(columns = 1:2, valign = "mid") %>% 
-  kableExtra::footnote(
+  footnote(
     "Se omiten registros donde la edad no es especificada.",
-    general_title = "Nota"
+    general_title = "Nota:",
+    footnote_as_chunk = T
   )
 ```
 
@@ -96,11 +97,12 @@ De acuerdo con la distribución acumulada de la población, podemos concluir que
 se caracteriza por tener una población joven, tan sólo el 46.16% de su población se encuentra
 por debajo de los 20 años. 
 
-Tomando en cuenta que la población activa sean aquellas personas entre los 15 y 60 años, el 
-porcentaje de la población en este grupo sería del 57.62%, resultando que esta población cuenta 
-con un "bono demográfico", aunque realmente sería mejor el término indicios de un futuro bono 
-demográfico, pues este cálculo se ve sustentado sobre todo por el alto número de personas entre 
-los 15 y 25 años.
+Tomando en cuenta que la población en edad de trabajar sean aquellas personas entre los 15 y 60 
+años, el porcentaje de la población en este grupo sería del 57.62%, resultando que esta población 
+cuenta con un bono demográfico^[Periodo donde la población activa e inactiva en edad de trabajar 
+superan en cantidad a las personas económicamente dependientes (niños y adultos mayores).], aunque 
+realmente sería mejor el término *indicios de un futuro* bono demográfico, pues este cálculo
+se ve sustentado sobre todo por el alto número de personas entre los 15 y 25 años.
 
 # Estructura por grupos de edad y sexo
 
@@ -109,9 +111,9 @@ egedadsexo <-
   eic15_74 %>% 
   filter(edad != 999) %>% 
   mutate(
-    gedad = santoku::chop(
+    gedad = chop(
       edad, breaks = seq(0, 80, 5), 
-      labels = santoku::lbl_discrete()
+      labels = lbl_discrete()
     ),
     sexo = ifelse(sexo == 1, "Hombres", "Mujeres")
   ) %>% 
@@ -129,7 +131,7 @@ egedadsexo %>%
     geom_col(aes(y = -pob)) +
     facet_wrap(~sexo) +
     coord_flip() +
-    scale_y_continuous(labels = scales::trans_format(abs, scales::comma_format())) +
+    scale_y_continuous(labels = scales::trans_format(abs, comma_format())) +
     scale_fill_manual(values = c("#EDC949","#B07AA2")) +
     labs(
       subtitle = "San Felipe del Progreso, México",
@@ -153,7 +155,7 @@ egedadsexo %>%
     geom_col(aes(y = -prop)) +
     facet_wrap(~sexo) +
     coord_flip() +
-    scale_y_continuous(labels = scales::trans_format(abs, scales::percent_format())) +
+    scale_y_continuous(labels = scales::trans_format(abs, percent_format())) +
     scale_fill_manual(values = c("#EDC949","#B07AA2")) +
     labs(
       subtitle = "San Felipe del Progreso, México",
