@@ -203,8 +203,8 @@ tasi %>%
 ```
 
 Como se mencionó en clase, esta tasa es poco significativa, pues realmente no
-refleja las condiciones educativas al tomar como referencia el tamaño potencial 
-que conceptualmente puede estar cursando algún nivel educativo.
+refleja las condiciones educativas al tomar como referencia el tamaño potencial
+de la población que conceptualmente puede estar cursando algún nivel educativo.
 
 Esto se puede ver en la Tabla 2, pues la diferencia es mínima entre estas dos 
 entidades.
@@ -246,7 +246,8 @@ tnas %>%
 En el caso de México, la educación básica empieza con la escuela primaria a partir
 de los 6 años (generalmente) y termina con la escuela secundaria a los 14 años. Estas
 dos forman parte del núcleo obligatorio, sin embargo, aún existen regiones en donde 
-esta educación no es accesible, por ello las tasas son muy altas pero no son completas.
+esta educación no es accesible y/o hay niños en situación de calle o abandono, 
+por ello las tasas son muy altas pero no son completas.
 
 Después del núcleo básico, se encuentra la educación de nivel medio-superior, la cual 
 por decreto del ex presidente Felipe Calderón en el año 2012 pasó a ser obligatoria.
