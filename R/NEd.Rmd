@@ -1,0 +1,301 @@
+---
+title: "Nivel Educativo"
+subtitle: "Análisis Demográfico"
+author: "Jacob Hernández"
+date: "`r Sys.Date()`"
+output: 
+  tint::tintHtml:
+    includes:
+      in_header: header.html
+bibliography: refs.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "ragg_png")
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+library(santoku)
+library(scales)
+library(kableExtra)
+```
+
+El siguiente trabajo tiene el objetivo de analizar el nivel educativo
+en el estado de Guerrero y Sinaloa, en México, por medio de las tasas de 
+alfabetismo, asistencia escolar, así como la población de acuerdo con 
+el último nivel escolar aprobado. 
+
+Además, se plantea el uso de dos encuestas nacionales para comparar
+las estimaciones que pueden proporcionar estos instrumentos.
+
+## ENOE 2015 Segundo Trimestre
+
+El uso de la ENOE del Segundo (o Tercer) Trimestre se justifica por dar una 
+mejor estimación de la población a mitad de año.
+
+```{r cache=TRUE}
+sdemt <- 
+  foreign::read.dbf(
+    here::here("data/SDEMT215.dbf"), 
+    as.is = TRUE
+  ) %>% 
+  as_tibble() %>% 
+  janitor::clean_names()
+```
+
+## EIC 2015
+
+Una forma sencilla de trabajar las bases de la Encuesta Intercensal
+es sólo leer las columnas que contienen la información esencial, esto se
+puede hacer con ayuda del descriptor de archivos. En este caso, las variables 
+necesarias son `EDAD`, `FACTOR`, `ALFABET`, `ASISTEN` y `NIVACAD`; `ENT` es
+necesaria para poder unir las bases de las dos entidades.
+
+```{marginfigure}
+Leer sólo las columnas necesarias ahorra memoria RAM. Además, hacer uso
+de la función `purrr::map_df` evita tener que almacenar en dos variables
+distintas cada archivo y unir las bases posteriormente.
+```
+
+```{r cache=TRUE}
+eic15 <-
+  map_df(
+    str_c("data/TR_PERSONA", c(12,25), ".CSV"),
+    ~ read_csv(
+      here::here(.x), 
+      col_types = cols_only(
+        ENT = col_character(),
+        EDAD = col_double(),
+        FACTOR = col_double(),
+        ALFABET = col_double(),
+        ASISTEN = col_double(),
+        NIVACAD = col_double()
+      )
+    )
+  ) %>% 
+  janitor::clean_names()
+```
+
+## Unión de Bases
+
+Para trabajar con la base de la ENOE, es necesario filtrar de acuerdo con
+la condición de residencia (`C_RES`) a aquellos entrevistados que son residentes
+habituales o residentes nuevos, de esta manera se obtiene la población reportada
+oficialmente.
+
+```{marginfigure}
+Sólo necesitamos a la población de 5 años y más, para ello se filtra la edad (`EDA`) 
+hasta el valor 97, el cual está definido para agrupar a las personas de 97 y más años.
+```
+
+```{r cache=TRUE}
+sdem_5m <- 
+  sdemt %>% 
+  mutate(eda = as.double(eda), cs_p13_1 = as.numeric(cs_p13_1)) %>% 
+  filter(
+    ent %in% c("12","25"), 
+    c_res != 2, 
+    between(eda, 5, 97)
+  ) %>% 
+  transmute(
+    ent, 
+    factor = fac, 
+    edad = eda,
+    alfabet = recode(cs_p12, "1"="Si", "2"="No", "9"="No especificado"), 
+    asisten = recode(cs_p17, "1"="Si", "2"="No", "9"="No especificado"), 
+    nivacad = case_when(
+      cs_p13_1 <= 1 ~ "Ninguno/Preescolar",
+      cs_p13_1 <= 3 ~ "Básica",
+      cs_p13_1 == 4 ~ "Media Superior",
+      cs_p13_1 <= 7 ~ "Superior",
+      cs_p13_1 <= 9 ~ "Posgrado"
+    )
+  )
+```
+
+```{marginfigure}
+Para la EIC, se filtra la edad (`EDAD`) hasta el valor 110, el cual está 
+definido para agrupar a las personas de 110 y más años.
+```
+
+```{r cache=TRUE}
+eic15_5m <- 
+  eic15 %>% 
+  filter(between(edad, 5, 110)) %>% 
+  mutate(
+    alfabet = recode(alfabet, "5"="Si", "7"="No", "9"="No especificado"), 
+    asisten = recode(asisten, "5"="Si", "7"="No", "9"="No especificado"),
+    nivacad = case_when(
+      nivacad <= 1 ~ "Ninguno/Preescolar",
+      nivacad <= 3 ~ "Básica",
+      nivacad <= 5 ~ "Media Superior",
+      nivacad <= 11 ~ "Superior",
+      nivacad <= 14 ~ "Posgrado"
+    )
+  )
+
+escol <- bind_rows(enoe = sdem_5m, eic = eic15_5m, .id = "encuesta")
+```
+
+# Tasa de alfabetización
+
+La tasa de alfabetización es el porcentaje de la población que sabe 
+leer o escribir después de determinada edad. En este caso, la población mayor
+a los 5 años. 
+
+```{r}
+talf <- 
+  escol %>% 
+  group_by(encuesta, ent) %>% 
+  summarise(
+    talf = sum(factor[alfabet=="Si"])/sum(factor)
+  )
+```
+
+```{r echo=FALSE}
+talf %>% 
+  mutate(
+    ent = ifelse(ent == "12", "Guerrero", "Sinaloa"),
+    talf = percent(talf, 0.01)
+  ) %>% 
+  pivot_wider(names_from = c(ent, encuesta), values_from = talf) %>% 
+  kable(
+    align = "c",
+    col.names = c("Guerrero", "Sinaloa", "Guerrero", "Sinaloa"),
+    caption = "**Tabla 1.**<br>Tasa de alfabetismo, por encuesta.<br><i style='color:#A4A4A4'>Fuente: Elaboración propia</i>"
+  ) %>% 
+  add_header_above(c("EIC 2015" = 2, "ENOE 2015 T2" = 2))
+```
+
+Como se puede observar, la tasa es menor en Guerrero, en promedio de las dos 
+encuestas, el 85.31% es alfabeta, mientras que en Sinaloa este porcentaje es 
+del 93.25%. Esta diferencia sorprende poco, pues las condiciones de la zona sur
+del país suelen ser más precarias que en la región norte.
+
+# Tasa bruta de asistencia escolar
+
+Se entiende como tasa bruta de asistencia escolar, a la presencia que tiene la
+población en algún grado o nivel de educación de la enseñanza formal.
+
+```{r}
+tasi <-
+  escol %>% 
+  group_by(encuesta, ent) %>% 
+  summarise(
+    tasi = sum(factor[asisten=="Si"])/sum(factor)
+  )
+```
+
+```{r echo=FALSE}
+tasi %>% 
+  mutate(
+    ent = ifelse(ent == "12", "Guerrero", "Sinaloa"),
+    tasi = percent(tasi, 0.01)
+  ) %>% 
+  pivot_wider(names_from = c(ent, encuesta), values_from = tasi) %>% 
+  kable(
+    align = "c",
+    col.names = c("Guerrero", "Sinaloa", "Guerrero", "Sinaloa"),
+    caption = "**Tabla 2.**<br>Tasa bruta de asistencia escolar, por encuesta.<br><i style='color:#A4A4A4'>Fuente: Elaboración propia</i>"
+  ) %>% 
+  add_header_above(c("EIC 2015" = 2, "ENOE 2015 T2" = 2))
+```
+
+Como se mencionó en clase, esta tasa es poco significativa, pues realmente no
+refleja las condiciones educativas al tomar como referencia el tamaño potencial 
+que conceptualmente puede estar cursando algún nivel educativo.
+
+Esto se puede ver en la Tabla 2, pues la diferencia es mínima entre estas dos 
+entidades.
+
+# Tasa neta de asistencia escolar
+
+Por otro lado, la tasa neta de asistencia escolar, se refiere a la presencia que 
+tiene la población en edad normativa en el nivel o grado de estudios que le 
+corresponde a la edad.
+
+```{r}
+tnas <- 
+  escol %>% 
+  filter(edad > 5, edad < 24) %>% 
+  mutate(
+    gedad = chop(edad, breaks = c(6,12,15,18,24), labels = lbl_discrete())
+  ) %>%
+  group_by(encuesta, ent, gedad) %>% 
+  summarise(
+    tnas = sum(factor[asisten=="Si"])/sum(factor)
+  )
+```
+
+```{r echo=FALSE}
+tnas %>% 
+  mutate(
+    ent = ifelse(ent == "12", "Guerrero", "Sinaloa"),
+    tnas = percent(tnas, 0.01)
+  ) %>% 
+  pivot_wider(names_from = c(ent, encuesta), values_from = tnas) %>% 
+  kable(
+    align = "c",
+    col.names = c("Edad", "Guerrero", "Sinaloa", "Guerrero", "Sinaloa"),
+    caption = "**Tabla 3.**<br>Tasa neta de asistencia escolar, por encuesta.<br><i style='color:#A4A4A4'>Fuente: Elaboración propia</i>"
+  ) %>% 
+  add_header_above(c(" " = 1, "EIC 2015" = 2, "ENOE 2015 T2" = 2))
+```
+
+En el caso de México, la educación básica empieza con la escuela primaria a partir
+de los 6 años (generalmente) y termina con la escuela secundaria a los 14 años. Estas
+dos forman parte del núcleo obligatorio, sin embargo, aún existen regiones en donde 
+esta educación no es accesible, por ello las tasas son muy altas pero no son completas.
+
+Después del núcleo básico, se encuentra la educación de nivel medio-superior, la cual 
+por decreto del ex presidente Felipe Calderón en el año 2012 pasó a ser obligatoria.
+Esto con el objetivo de que, a mediano plazo, México alcance una tasa neta de asistencia 
+escolar similar a la que se tiene en otros países. 
+
+Como se puede apreciar en el cuadro, el nivel de asistencia presenta una disminución 
+considerable respecto a la presente en los dos anteriores niveles. En el caso de 
+Guerrero esta tasa es menor que en Sinaloa, por una diferencia promedio de casi 8 puntos 
+porcentuales entre las entidades.
+
+Finalmente, en la educación superior, el contraste con las etapas iniciales es muy grande;
+en Guerrero la tasa promedio entre encuestas llega a ser casi del 30%, mientras que en 
+Sinaloa el índice es cercano al 48%. 
+
+Este último resultado ayuda a comprender porque la primer tasa no es significativa, y a
+resaltar nuevamente las diferencias que existen entre las dos regiones a las que pertenecen 
+estos estados.
+
+# Nivel de Educación
+
+```{r}
+nivedu <- 
+  escol %>% 
+  filter(edad >= 15) %>% 
+  count(encuesta, ent, nivacad, nivacad, wt = factor)
+```
+
+```{r echo=FALSE}
+nivedu %>% 
+  mutate(
+    ent = ifelse(ent == "12", "Guerrero", "Sinaloa"),
+    n = comma(n),
+    nivacad = fct_relevel(nivacad, "Ninguno/Preescolar", "Básica", "Media Superior", "Superior"),
+    nivacad = fct_explicit_na(nivacad, "No especificado")
+  ) %>% 
+  arrange(nivacad) %>% 
+  pivot_wider(names_from = c(ent, encuesta), values_from = n) %>% 
+  kable(
+    align = "lrrrr",
+    col.names = c("Educación", "Guerrero", "Sinaloa", "Guerrero", "Sinaloa"),
+     caption = "**Tabla 4.**<br>Población de acuerdo al último nivel educativo aprobado.<br><i style='color:#A4A4A4'>Fuente: Elaboración propia</i>"
+  ) %>% 
+  add_header_above(c(" " = 1, "EIC 2015" = 2, "ENOE 2015 T2" = 2))
+```
+
+Como se puede observar en la Tabla 4. la población de cada entidad se distribuye de manera
+similar en la educación básica y media-superior, sin embargo, la diferencia se amplía cuando
+se observa el nivel superior y de posgrado en los cuales Sinaloa destaca por una mayor 
+población preparada escolarmente, además de una menor población que no aprobó/asistió a la 
+educación básica.
+
