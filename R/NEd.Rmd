@@ -170,8 +170,8 @@ talf %>%
 
 Como se puede observar, la tasa es menor en Guerrero, en promedio de las dos 
 encuestas, el 85.31% es alfabeta, mientras que en Sinaloa este porcentaje es 
-del 93.25%. Esta diferencia sorprende poco, pues las condiciones de la zona sur
-del país suelen ser más precarias que en la región norte.
+del 93.25%. Esta diferencia sorprende poco, pues las condiciones socio-económicas
+de la zona sur del país suelen ser diferentes que en la región norte.
 
 # Tasa bruta de asistencia escolar
 
