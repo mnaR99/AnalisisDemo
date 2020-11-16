@@ -22,3 +22,9 @@ Trabajos y proyectos del curso Análisis Demográfico
 ## Semana 5
 
 * [Nivel Educativo](https://mnar99.github.io/AnalisisDemo/R/NEd)
+
+---
+
+## Proyectos
+
+* [Primer mitad del curso](https://mnar99.github.io/AnalisisDemo/R/TRsm)
