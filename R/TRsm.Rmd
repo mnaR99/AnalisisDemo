@@ -1,0 +1,471 @@
+---
+title: "Resumen de las primeras unidades"
+subtitle: "Análisis Demográfico"
+author: "Jacob Hernández"
+date: "`r Sys.Date()`"
+output: 
+  tint::tintHtml:
+    includes:
+      in_header: header.html
+bibliography: refs.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "CairoSVG", echo = FALSE)
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+library(ggiraph)
+library(hrbrthemes)
+library(kableExtra)
+library(scales)
+library(ggtext)
+
+theme_set(theme_ipsum_rc())
+```
+
+El siguiente trabajo es un resumen de los temas vistos en las primeras unidades del curso 
+y que son desarrollados en dos países, Francia (Región Metropolitana) ^[Territorio de 
+Francia situado en Europa.] y Sudáfrica.
+
+Los datos poblaciones referentes a Francia provienen del Instituto Nacional Francés de
+Estadísticas y Estudios Económicos (INSEE), y fueron consultados por medio de la página 
+web del Instituto Nacional Francés de Estudios Demográficos (INDE).
+
+Debido a la falta de información respecto a los años más antiguos en Sudáfrica, se 
+decidió usar las estimaciones que realiza la Organización de las Naciones Unidas (UN) 
+como parte del proyecto Perspectivas de la Población Mundial, pues esta serie proporciona
+datos desde el año 1950.
+
+# Proyecciones de Población
+
+En esta sección, se proyecta la población por sexo con base en los años 1950 y 2000, 
+para poder estimar la población de los años 2010 y 2020.
+
+```{r cache=TRUE}
+## Francia 
+
+fr_1946_2018 <- 
+  readxl::read_excel(
+    path = here::here("data/fr_1946_2018.xls"), 
+    skip = 5, n_max = 74
+  ) %>% 
+  slice(-1) 
+
+pop_fr <-
+  fr_1946_2018 %>%
+  transmute(
+    country = "France", 
+    year = Année,
+    male = `moins de 20 ans...4` + `de 20 à 59 ans...5` + `60 ans ou plus...6`,
+    female = `moins de 20 ans...10` + `de 20 à 59 ans...11` +`60 ans ou plus...12`,
+    across(male:female, ~zoo::rollmean(., k = 2, fill = TRUE, align = "left"))
+  ) %>% 
+  filter(year %% 10 == 0)
+
+## Sudáfrica
+
+wpp2019 <- 
+  read_csv(
+    file = here::here("data/WPP2019_TotalPopulationBySex.csv")
+  )
+
+pop_za <-
+  wpp2019 %>% 
+  filter(
+    Variant == "Medium", 
+    Location == "South Africa"
+  ) %>% 
+  transmute(
+    country = Location, 
+    year = Time, 
+    male = PopMale * 1e3, 
+    female = PopFemale * 1e3
+  ) %>% 
+  filter(
+    year %% 10 == 0, 
+    year <= 2010
+  )
+
+growth_model <- function(training, date_col = "date", pop_col = "pop", type = c("log","gmp")){
+  
+  data <- as.data.frame(training)
+  
+  nr <- nrow(data)
+  n <- nr %/% 3
+   
+  if (nr %% 3 == 1) {
+    data <- data[-1,]
+  } else if (nr %% 3  == 2) {
+    data <- data[-c(1,nr),]
+  }
+  
+  fd <- data[1, date_col]
+  dd <- diff(data[1:2, date_col])
+  
+  if (type == "log") {
+    s <- map_dbl(0:2, ~sum(1/data[1:n + .x*n, pop_col]))
+  } else if (type == "gmp") {
+    s <- map_dbl(0:2, ~sum(log(data[1:n + .x*n, pop_col])))
+  }
+  
+  c <- ((s[3]-s[2])/(s[2]-s[1]))**(1/n)
+  h <- (s[2]-s[1])*(c-1)/(c**n-1)**2
+  k <- 1/n*(s[1]-(c**n-1)/(c-1)*h)
+  
+  if (type == "log") {
+    function(date) 1/(k+h*c**((date-fd)/dd))
+  } else if (type == "gmp") {
+    function(date) exp(k+h*c**((date-fd)/dd))
+  }
+}
+
+logs <- 
+  map2(
+    list(pop_fr, pop_fr, pop_za, pop_za), 
+    list("male","female","male","female"),
+    ~ growth_model(.x[-7,], date_col = "year", pop_col = .y, type = "log")
+  )
+
+gmps <- 
+  map2(
+    list(pop_fr, pop_fr, pop_za, pop_za), 
+    list("male","female","male","female"),
+    ~ growth_model(.x[-7,], date_col = "year", pop_col = .y, type = "gmp")
+  )
+
+c2020 <-
+  tibble(
+    country = rep(c("France","South Africa"), each = 2), 
+    sex = rep(c("male","female"), 2), 
+    year = 2020
+  )
+
+pop_proy <-
+  bind_rows(pop_fr, pop_za) %>% 
+  pivot_longer(male:female, names_to = "sex", values_to = "pop") %>%
+  bind_rows(c2020) %>% 
+  nest(data = c(year, pop)) %>% 
+  mutate(id_func = row_number()) %>% 
+  unnest(data) %>%
+  mutate(
+    log_model = map2_dbl(id_func, year, ~logs[[.x]](.y)),
+    gmp_model = map2_dbl(id_func, year, ~gmps[[.x]](.y))
+  )
+```
+
+## Resultados
+
+```{r fig.dim=c(10,5)}
+pop_proy %>% 
+  select(-id_func) %>% 
+  mutate(
+    sex = recode(sex, "female" = "Mujeres", "male" = "Hombres"),
+    country = recode(country, "France" = "Francia", "South Africa" = "Sudáfrica")
+  ) %>% 
+  ggplot(aes(year)) +
+    geom_line(aes(y = log_model, color = country, linetype = "Logístico"), lwd = 0.1) +
+    geom_line(aes(y = gmp_model, color = country, linetype = "Gompertz"), lwd = 0.1) +
+    geom_point(aes(y = pop, color = country), shape = 21, fill = "#FFFFFF", show.legend = F) +
+    facet_wrap(~sex) +
+    scale_y_comma() +
+    labs(
+      title = "Gráfico 1.",
+      subtitle = "Población proyectada según modelos por país y sexo.",
+      caption = "Fuente: Elaboración propia.",
+      color = "País",
+      linetype = "Modelo"
+    ) +
+    theme(
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x =  element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      legend.position = "right",
+      plot.margin = margin(t = 10, b = 10),
+      plot.caption.position = "plot"
+    )
+```
+
+Como se puede apreciar en el anterior gráfico, ningún modelo hace una buena estimación 
+de la población para el 2010 y con ello tampoco para el 2020. Esto sucede por algún 
+cambio en cada nación entre el año 2000 y 2010, el cual pudo o no estar relacionado.
+
+Por un lado, el ritmo de crecimiento en Francia aumentó de acuerdo con la tendencia que 
+se presentaba en el último medio siglo. Mientras que en Sudáfrica fue todo lo 
+contrario, el crecimiento se redujo y con ello se presentó una población sobrestimada por 
+los modelos, de acuerdo con los cuales, el país africano superaría a Francia en población
+algunos años después del 2010.
+
+```{r}
+pop_proy %>% 
+  mutate(across(pop:gmp_model, ~comma(.))) %>% 
+  select(-id_func) %>%
+  pivot_wider(names_from = sex, values_from = c(pop, log_model, gmp_model)) %>% 
+  relocate(contains("_male"), contains("_female"), .after = 2) %>% 
+  select(-country) %>% 
+  kable(
+    align = "r",
+    col.names = c("Año", rep(c("Población", "Logístico", "Gompertz"), 2)),
+    caption = "**Tabla 1.**<br>Ajuste de modelos Lógistico y Gompertz por país y sexo.<br><i style='color:#A4A4A4'>Fuente: Elaboración propia.</i>"
+  ) %>% 
+  add_header_above(c(" " = 1, "Hombres" = 3, "Mujeres" = 3)) %>% 
+  pack_rows("Francia", 1, 8) %>% 
+  pack_rows("Sudáfrica", 9, 16)
+```
+
+Observando a detalle las estimaciones realizadas en cada grupo, sin considerar el falló
+en las proyecciones, podemos asegurar que el mejor ajuste lo hace el modelo Gompertz al 
+presentar menores diferencias (residuos) con los datos verdaderos. 
+
+Sin embargo, al tomar en cuenta los cambios ocurridos entre el año 2000 y 2010, lo único que
+podemos concluir es que, si se amplía el intervalo para ajustar el modelo, hasta el año 
+2005-2010, se podría llegar a tener mejores estimaciones sobre los siguientes periodos.
+
+# Índice de Masculinidad
+
+```{r cache=TRUE}
+## Sudáfrica
+
+wpp2019_agesex <- read_csv(here::here("data/WPP2019_PopulationBySingleAgeSex_1950-2019.csv"))
+
+im_za <- wpp2019_agesex %>% 
+  filter(
+    Location == "South Africa",
+    Time %% 10 == 0,
+    AgeGrp %% 10 == 0,
+    AgeGrp <= 70
+  ) %>% 
+  transmute(
+    country = Location,
+    year = Time,
+    age = AgeGrp,
+    im = PopMale/PopFemale * 1e2
+  )
+
+## Francia
+
+years_fr_agesex <- as.character(1950:2011)
+
+fr_agesex <- 
+  map(
+    years_fr_agesex,
+    ~ readxl::read_excel(
+      here::here("data/fm_t6.fr.xls"), 
+      sheet = .x,
+      col_names = c("age","","male","","","","","female"),
+      range = "B10:I110"
+    ) %>% 
+    select(age, male, female)
+  )
+
+im_fr <-   
+  fr_agesex %>% 
+  set_names(years_fr_agesex) %>% 
+  bind_rows(.id = "year") %>% 
+  mutate(
+    age = as.numeric(age),
+    year = as.numeric(year)
+  ) %>% 
+  filter(age %% 10 == 0, age <= 70) %>% 
+  group_by(age) %>% 
+  arrange(year, .by_group = T) %>% 
+  mutate(across(male:female, ~zoo::rollmean(., k = 2, fill = TRUE, align = "left"))) %>% 
+  filter(year %% 10 == 0, year <= 2010) %>% 
+  transmute(country = "France", year, im = male/female * 1e2) %>% 
+  ungroup()
+
+## Unión de bases
+
+im_fr_za <- bind_rows(im_za, im_fr)
+```
+
+De acuerdo con los datos presentados anteriormente, un tema a destacar en ambas naciones
+es el menor número de hombres respecto al de mujeres. Esta relación se analiza (generalmente) 
+con el índice de masculinidad (IM), el cual se define como la cantidad de hombres por cada 100 
+mujeres.
+
+## Resultados
+
+```{r fig.cap=" "}
+p2 <- 
+  im_fr_za %>% 
+  mutate(country = recode(country, "France" = "Francia", "South Africa" = "Sudáfrica")) %>% 
+  ggplot(aes(year, age, fill = im)) +
+    facet_wrap(~country) +
+    geom_tile_interactive(width = 9, height = 9, color = "#cccccc", aes(tooltip = number(im, 0.01))) +
+    scale_fill_gradient2(midpoint = 100, low = "#FFAE49", high = "#024B7A") +
+    scale_x_continuous() +
+    coord_equal() +
+    labs(
+      title = "Gráfico 2.",
+      subtitle = "Índice de nasculinidad por país, edad y año.",
+      caption = "Fuente: Elaboración propia."
+    ) +
+    theme(
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      legend.title = element_blank(),
+      plot.subtitle = element_markdown(),
+      plot.caption.position = "plot",
+      plot.margin = margin(t = 20, b = 10)
+    )
+
+ggiraph(ggobj = p2, width_svg = 8, height_svg = 5, width = 1)
+```
+
+En el gráfico anterior se observa una diferencia entre las personas más pequeñas y 
+las más grandes, pues conforme la edad aumenta el IM suele disminuir. 
+
+En el caso de Francia, se pueden distinguir dos patrones alrededor de los puntos
+máximos y mínimos:
+
+- Durante 1950 a 1980 se observa sobre todo una mayor presencia de hombres entre los
+20 y los 40 años. Esto puede estar asociado con el fin de la segunda guerra
+mundial (1945); la guerra de independencia de Argelia que tuvo inicio en 1954 y 
+finalizó en 1962, y especialmente por el periodo que tuvo inicio en la década de 1960 
+y finalizó a la mitad de 1970 caracterizado por un fuerte crecimiento económico y
+un desempleo residual que generaron varios movimientos de inmigración con efectos
+longitudinales.
+
+- A partir de la década de los 60s-70s, el IM empieza a aumentar en las personas de 70 
+años, dando un indicio de que la población aumenta su esperanza de vida, puesto que se 
+conoce que las mujeres son más longevas que los hombres y, si la razón entre sexos 
+se empieza a igualar es muy probable que la población, en general, viva más años. 
+Esto es lógico tomando en cuenta que Francia se caracteriza hoy en día por tener una 
+población envejecida.
+
+Por otro lado, Sudáfrica presenta patrones alrededor de las mismas zonas de este plano,
+en este caso se plantean los siguientes puntos:
+
+- Se observa un patrón de 1950 a 1970 caracterizado por una mayor presencia de hombres 
+entre los 20 y 40 años, que se diluyó en las siguientes décadas. Antes de este periodo, 
+Sudáfrica se distinguió por tener una economía de guerra, donde la mano de obra negra 
+era cada vez más importante en las industrias mineras y las fábricas, y la población 
+marginada en las urbes casi se duplicó. Lo que siguió a este periodo fueron años de 
+constante enfrentamiento por terminar con la supremacía blanca, hasta finales de la 
+década de los 70s.
+
+- En el caso donde el IM es más bajo es en la región del año 2010, aquí se observa un 
+patrón decreciente en las edades de 60 y 70 años desde los años 50s que se ve interrumpido 
+entre 1990 y el año 2000. En otros términos, la esperanza de vida en Sudáfrica estaba en un proceso
+de crecimiento que sufrió una disminución, alcanzando un mínimo en 2010 de acuerdo con 
+esta serie. Esta situación está relacionada con el alto nivel de prevalencia del VIH en este 
+país, el cual se vio agravado en este periodo sobre todo por las malas condiciones económicas 
+y la falta de educación sexual debido a causas principalmente religiosas, que dieron como 
+resultado un alto índice de infección y con ello un aumento en la tasa de mortalidad. 
+Esto justifica la sobrestimación de los modelos al inicio del trabajo.
+
+# Componentes del crecimiento natural (*Francia*)
+
+```{r}
+birthsfr <- 
+  readxl::read_excel(
+    here::here("data/t35.fr.xlsx"), 
+    range = "A6:B124", 
+    col_names = c("year","births"), 
+    col_types = c("numeric","numeric")
+  )
+
+deathsfr <- 
+  readxl::read_excel(
+    here::here("data/t74.en.xlsx"), 
+    sheet = "FM - E", 
+    range = "A7:B64", 
+    col_names = c("year","deaths"), 
+    col_types = c("numeric","numeric")
+  )
+
+ng_fr <-
+  birthsfr %>% 
+  left_join(deathsfr) %>% 
+  right_join(pop_fr) %>% 
+  transmute(
+    year, 
+    "Tasa Bruta de Natalidad" = births/(male+female), 
+    "Tasa Bruta de Mortalidad" = deaths/(male+female)
+  )
+```
+
+Finalmente, el último tema a tratar son las tasas que afectan el crecimiento natural 
+de la población, en este caso sólo analizaremos el caso de Francia.
+
+## Resultados
+
+```{r fig.dim=c(8,5)}
+ng_fr %>% 
+  pivot_longer(2:3, names_to = "rate") %>% 
+  mutate(rate = fct_reorder(rate, value)) %>% 
+  ggplot(aes(year, value*1e3, color = rate)) +
+    geom_line(lwd = 1.2) +
+    geom_point(shape = 21, fill = "#FFFFFF", show.legend = F) +
+    expand_limits(y = 0) +
+    scale_color_manual(values = c("#5E6890","#D90035")) +
+    labs(
+      title = "Gráfico 3.",
+      subtitle = "Componentes del crecimiento natural.",
+      caption = "Fuente: Elaboración propia."
+    ) +
+    theme(
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.x = element_blank(),
+      plot.margin = margin(t = 10, b = 10)
+    )
+```
+
+Con este gráfico podemos hacer hincapié con respecto al anterior análisis al ver que:
+
+- Francia ha ido aumentando su esperanza de vida, pues la tasa de mortalidad en esta población 
+ha ido disminuyendo con los años. 
+- El término antes mencionado de población envejecida se comprueba con la disminución de 
+la tasa de natalidad.
+- Y finalmente, al existir decrementos en ambas series, el crecimiento natural por ende se ve
+disminuido, dando justificación así al porqué de la subestimación en el año 2010 por los modelos 
+ajustados a la población, la cual debió sufrir un aumento en su saldo migratorio.
+
+# Diagrama de Lexis (*Extra*)
+
+En el siguiente diagrama de Lexis se plantea lo siguiente:
+
+1) Población de 0 a 4 años exactos el 1 de enero de 2006.
+2) Sobrevivientes de 7 años que pertenecen a la generación del año 2000.
+3) Defunciones de la generación 2001 que sucedieron en el año 2008.
+4) Nacimientos en el año 2006.
+5) Sobrevivientes de 4 años de la generación 2003.
+
+```{r fig.asp=1/1.2}
+ggplot() +
+  annotate("polygon", x = as.Date(c("2008-01-01", "2008-12-31", "2008-12-31", "2008-01-01")), y = c(6, 7, 8, 7), alpha = 0.3) +
+  geom_abline(slope = 1/365.35, intercept = -(30:34), color = "#cccccc", lwd = 0.2) +
+  annotate("linerange", x = as.Date("2006-01-01"), ymin = 0, ymax = 4) +
+  annotate(
+    geom = "linerange", 
+    xmin = as.Date(c("2007-01-01", "2006-01-01", "2007-01-01")), 
+    xmax = as.Date(c("2007-12-31", "2006-12-31", "2007-12-31")), 
+    y = c(7, 0, 4)
+  ) +
+  annotate(
+    geom = "text", 
+    x = as.Date(c("2005-11-01", "2007-08-01", "2008-07-01", "2006-07-01", "2007-08-01")), 
+    y = c(4, 7, 6.75, 0, 4) + 0.25, 
+    label = str_glue("({1:5})"), 
+    family = "Roboto Condensed"
+  ) + 
+  scale_x_date(breaks = as.Date(str_c(2000:2009,"-01-01")), date_labels = "%Y") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,8.4), breaks = 0:8) +
+  coord_fixed(365.25, xlim = as.Date(c("1999-11-30","2009-01-30"))) +
+  labs(
+    y = "Edad"
+  ) +
+  theme(
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(hjust = 0),
+    axis.text.y = element_text(vjust = 0),
+    axis.title.x = element_blank()
+  )
+```
