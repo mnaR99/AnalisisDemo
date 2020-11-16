@@ -329,7 +329,7 @@ y finalizó a la mitad de 1970 caracterizado por un fuerte crecimiento económic
 un desempleo residual que generaron varios movimientos de inmigración con efectos
 longitudinales.
 
-- A partir de la década de los 60s-70s, el IM empieza a aumentar en las personas de 70 
+- A partir de la década de los 60's-70's, el IM empieza a aumentar en las personas de 70 
 años, dando un indicio de que la población aumenta su esperanza de vida, puesto que se 
 conoce que las mujeres son más longevas que los hombres y, si la razón entre sexos 
 se empieza a igualar es muy probable que la población, en general, viva más años. 
@@ -345,17 +345,17 @@ Sudáfrica se distinguió por tener una economía de guerra, donde la mano de ob
 era cada vez más importante en las industrias mineras y las fábricas, y la población 
 marginada en las urbes casi se duplicó. Lo que siguió a este periodo fueron años de 
 constante enfrentamiento por terminar con la supremacía blanca, hasta finales de la 
-década de los 70s.
+década de los 70's.
 
 - En el caso donde el IM es más bajo es en la región del año 2010, aquí se observa un 
-patrón creciente en las edades de 60 y 70 años desde los años 50s que se ve interrumpido 
-entre 1990 y el año 2000. En otros términos, la esperanza de vida en Sudáfrica estaba en un proceso
-de crecimiento que sufrió una disminución, alcanzando un mínimo en 2010 de acuerdo con 
-esta serie. Esta situación está relacionada con el alto nivel de prevalencia del VIH en este 
-país, el cual se vio agravado en este periodo sobre todo por las malas condiciones económicas 
-y la falta de educación sexual debido a causas principalmente religiosas, que dieron como 
-resultado un alto índice de infección y con ello un aumento en la tasa de mortalidad. 
-Esto justifica la sobrestimación de los modelos al inicio del trabajo.
+patrón creciente en las edades de 60 y 70 años desde los años 50's que se ve interrumpido 
+entre 1990 y el año 2000. En otros términos, la esperanza de vida en Sudáfrica estaba en 
+un proceso de crecimiento que sufrió una disminución, alcanzando un mínimo en 2010 de 
+acuerdo con esta serie. Esta situación está relacionada con el alto nivel de prevalencia 
+del VIH en este país, el cual se vio agravado en este periodo sobre todo por las malas 
+condiciones económicas y la falta de educación sexual debido a causas principalmente 
+religiosas, que dieron como resultado un alto índice de infección y con ello un aumento en 
+la tasa de mortalidad. Esto justifica la sobrestimación de los modelos al inicio del trabajo.
 
 # Componentes del crecimiento natural (*Francia*)
 
