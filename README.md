@@ -1,30 +1,30 @@
-# Análisis Demográfico
+## Análisis Demográfico
 
 Trabajos y proyectos del curso Análisis Demográfico
 
-## Semana 1
+### Semana 1
 
-* [Índice de Irregularidad](https://mnar99.github.io/AnalisisDemo/R/IR)
-* [Índice de Masculinidad](https://mnar99.github.io/AnalisisDemo/R/IM)
+1. [Índice de Irregularidad](https://mnar99.github.io/AnalisisDemo/R/IR) :bar_chart:
+2. [Índice de Masculinidad](https://mnar99.github.io/AnalisisDemo/R/IM) :man:/:woman:
 
-## Semana 2
+### Semana 2
 
-* [Modelo Logístico](https://mnar99.github.io/AnalisisDemo/R/MD_LOG)
+3. [Modelo Logístico](https://mnar99.github.io/AnalisisDemo/R/MD_LOG) :bust_in_silhouette:
 
-## Semana 3
+### Semana 3
 
-* [Modelo Logístico y de Gompertz](https://mnar99.github.io/AnalisisDemo/R/AC01)
+4. [Modelo Logístico y de Gompertz](https://mnar99.github.io/AnalisisDemo/R/AC01) :busts_in_silhouette:
 
-## Semana 4
+### Semana 4
 
-* [Estructura por edad y sexo](https://mnar99.github.io/AnalisisDemo/R/EGEDAD)
+5. [Estructura por edad y sexo](https://mnar99.github.io/AnalisisDemo/R/EGEDAD) :family:
 
-## Semana 5
+### Semana 5
 
-* [Nivel Educativo](https://mnar99.github.io/AnalisisDemo/R/NEd)
+6. [Nivel Educativo](https://mnar99.github.io/AnalisisDemo/R/NEd) :mortar_board:
 
 ---
 
 ## Proyectos
 
-* [Primer mitad del curso](https://mnar99.github.io/AnalisisDemo/R/TRsm)
+* [Primer mitad del curso](https://mnar99.github.io/AnalisisDemo/R/TRsm) :bookmark_tabs:
