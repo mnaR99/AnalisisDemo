@@ -28,7 +28,7 @@ Trabajos y proyectos del curso Análisis Demográfico
 ### Semana 5
 
 6. [Nivel Educativo](https://mnar99.github.io/AnalisisDemo/R/NEd) :mortar_board:
-> * INEGI. Encuesta Nacional de Ocupación y Empleo 2015, Trimestre 2
+> * INEGI. Encuesta Nacional de Ocupación y Empleo 2015, II Trimestre
 > * INEGI. Encuesta Intercensal 2015
 
 ---
