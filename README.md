@@ -31,6 +31,10 @@ Trabajos y proyectos del curso Análisis Demográfico
 > * INEGI. Encuesta Nacional de Ocupación y Empleo 2015, II Trimestre
 > * INEGI. Encuesta Intercensal 2015
 
+### Semana 6
+
+7. [Reconstrucción de Variables.](https://mnar99.github.io/AnalisisDemo/R/NEd) :hammer_and_wrench:
+> * INEGI. Encuesta Nacional de Ocupación y Empleo 2020, III Trimestre. ENOE<sup>N</sup>
 ---
 
 ## Proyectos
