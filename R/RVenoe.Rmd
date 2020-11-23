@@ -1,0 +1,358 @@
+---
+title: "Reconstrucción de variables"
+subtitle: "Análisis Demográfico"
+author: "Jacob Hernández"
+date: "`r Sys.Date()`"
+output: 
+  tint::tintHtml:
+    anchor_sections: false
+    includes:
+      in_header: header.html
+bibliography: refs.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "ragg_png", comment = "#")
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+```
+
+## Archivos de la ENOE
+
+```{r cache=TRUE}
+read_enoe <- function(x) {
+  foreign::read.dbf(x, as.is = TRUE) %>% 
+  as_tibble() %>% 
+  janitor::clean_names() }
+
+coe1 <- 
+  read_enoe(here::here("data/enoe_n_2020_trim3_dbf/enoen_coe1t320.dbf"))
+
+coe2 <- 
+  read_enoe(here::here("data/enoe_n_2020_trim3_dbf/enoen_coe2t320.dbf"))
+
+sdem <- 
+  read_enoe(here::here("data/enoe_n_2020_trim3_dbf/enoen_sdemt320.dbf"))
+
+hog <- 
+  read_enoe(here::here("data/enoe_n_2020_trim3_dbf/enoen_hogt320.dbf"))
+```
+
+## Campos de Identificación Única para los cuestionarios
+
+```{r echo=FALSE, fig.asp=0.4}
+png::readPNG(here::here("img/enoe_id.png")) %>% 
+  grid::grid.raster()
+```
+
+```{r}
+coe_id <- 
+  c("cd_a", "ent", "con", "v_sel", "tipo", "mes_cal", "ca", "n_hog", "h_mud", "n_ren")
+```
+
+# Población ocupada
+
+```{r cache=TRUE}
+ocup <- 
+  coe1 %>%
+  # Filtro de población ocupada
+  filter(
+    p1 == 1 
+    | p1a1 == 1| (is.na(p1a1) & p1a2 == 2) 
+    | as.numeric(p1c) %in% 1:4 | p1d == 1 
+    | ((p1d %in% c(2,9)) & p1e == 1)
+  )
+```
+
+## Posición ocupacional
+
+```{marginfigure}
+**P3d:** ¿ ... tiene empleados o le ayudan personas en su negocio o actividad?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;1. Sí
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;2. No
+```
+
+```{marginfigure}
+**P3g:** De las personas que ocupa o le ayudan a ..., ¿cuántos son 
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;**1.** trabajadores que reciben un pago?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;2. socios?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;3. trabajadores sin pago?
+```
+
+```{marginfigure}
+**P3h:** ¿En este trabajo ... 
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;1. recibe un pago?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;2. es un trabajador no familiar sin pago?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;3. es un trabajador familiar sin pago?
+```
+
+```{r}
+ocup %>% 
+  mutate(
+    pos_ocu2 = case_when(
+      p3h == 1 ~ "1 | Trabajadores Subordinados y Remunerados",
+      p3d == 1 & p3g1_1 == 1 ~ "2 | Empleadores",
+      p3d %in% c(2, 9) 
+      | (p3d == 1 & is.na(p3g1_1)) ~ "3 | Trabajadores por cuenta propia",
+      p3h %in% 2:3 ~ "4 | Trabajadores sin pago",
+      TRUE ~ "5 | No especificado"
+    )
+  ) %>% 
+  # Comparación
+  right_join(sdem, by = coe_id) %>% 
+  count(pos_ocu, pos_ocu2)
+```
+
+## Sector económico
+
+```{marginfigure}
+**P4a:** ¿A qué se dedica esta empresa, negocio o institución?
+```
+
+```{r}
+ocup %>% 
+  mutate(
+    p4a = as.numeric(p4a),
+    rama2 = case_when(
+      between(p4a, 2300, 2399) ~ "1 | Construcción",
+      between(p4a, 3100, 3399) ~ "2 | Industria Manufacturera",
+      between(p4a, 4300, 4399) 
+      | between(p4a, 4600, 4699) ~ "3 | Comercio",
+      between(p4a, 4800, 9399) ~ "4 | Servicios",
+      between(p4a, 1200, 2299) ~ "5 | Otros Servicios",
+      between(p4a, 1100, 1199) ~ "6 | Agropecuario",
+      TRUE ~ "7 | No especificado"
+    )
+  ) %>% 
+  # Comparación
+  right_join(sdem, by = coe_id) %>% 
+  count(rama, rama2)
+```
+
+## Jornada laboral
+
+```{marginfigure}
+**P4:** ¿Cuál es el nombre de la empresa, negocio o institución para la que ... trabaja o ayuda?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;1. ...
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;2. El negocio no tiene nombre
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;3. Es trabajador subordinado de una unidad doméstica o trabajador(a) de otro trabajador(a)
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;**4.** Es un(a) trabajador(a) en el extranjero
+```
+
+```{marginfigure}
+**P5:** La semana pasada, ¿ ... tuvo poco trabajo qué hacer? 
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;1. Sí
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;**2.** No trabajó la semana pasada 
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;3. No se encontró en esa situación
+```
+
+```{marginfigure}
+**P5b:** ¿Qué días y cuántas horas le dedicó ... a su trabajo la semana pasada?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;*P5b_THRS:* Total de número de horas en pregunta 5b.
+```
+
+```{r}
+ocup %>% 
+  mutate(
+    p5b_thrs = as.numeric(p5b_thrs),
+    dur = case_when(
+      p5 == 2 ~ "1 | Ausente con vínculo laboral",
+      between(p5b_thrs,  0, 14) ~ "2 | Menos de 15 horas",
+      between(p5b_thrs, 15, 24) ~ "3 | De 15 a 24 horas",
+      between(p5b_thrs, 25, 39) ~ "4 | De 25 a 39 horas",
+      between(p5b_thrs, 40, 48) ~ "6 | De 40 a 48 horas",
+      between(p5b_thrs, 49, 998) ~ "7 | Más de 48 horas",
+      p5b_thrs == 999 | p4 == 4 ~ "9 | No especificado"
+    )
+  ) %>% 
+  # Comparación
+  right_join(sdem, by = coe_id) %>% 
+  count(dur9c, dur)
+```
+
+## Condiciones críticas
+
+```{marginfigure}
+**Salario:** Salario mínimo mensual correspondiente a su zona salarial.
+```
+
+```{marginfigure}
+**P5e:** ¿Cuál es el motivo principal por el que la semana pasada ... no trabajó las horas habituales?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;1. Exceso de trabajo
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;2. Obtener más ingresos
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;3. Horas extras
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;4. Temporada alta (clientes, ventas, siembra o cosecha)
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;**5.** Reducción o suspensión del trabajo (falla de ventas o clientes, temporada baja, paro técnico)
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;**6.** Término del contrato o temporada de trabajo
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;7. Causas climatológicas
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;8. Vacaciones o días festivos
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;9. Enfermedad o accidente
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;10. Cuidar o atender a niños, enfermos o ancianos
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;11. Otros motivos personales o familiares
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;12. Ninguno de los anteriores
+```
+
+```{marginfigure}
+**P6b2:** ¿Cuánto ganó o en cuánto calcula sus ingresos? (Cada 15 días)
+```
+
+```{marginfigure}
+**P6c:** Actualmente el salario mínimo mensual es de $, ¿la cantidad que ... Obtiene al mes por su trabajo es
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;**1.** menor?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;**2.** igual a esta cantidad?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;**3.** más de 1 salario mínimo hasta 2?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;4. más de 2 salarios mínimos hasta 3?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;5. más de 3 salarios mínimos hasta 5?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;6. más de 5 salarios mínimos hasta 10?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;7. más de 10 salarios mínimos?
+<br>
+&nbsp;&nbsp;&nbsp;&nbsp;8. No quiso dar información
+```
+
+```{r}
+ocup %>% 
+  # Unión con SDEM para conocer el salario mínimo de la región
+  left_join(
+    sdem %>% select(all_of(coe_id), salario), 
+    by = coe_id
+  ) %>% 
+  # Unión con la 2da parte del cuestionario 
+  # para conocer el salario o posición salarial del encuestado
+  left_join(
+    coe2 %>% select(all_of(coe_id), p6b2, p6c), 
+    by = coe_id
+  ) %>% 
+  mutate(
+    across(c(p5b_thrs, p6b2), as.numeric),
+    tcco2 = case_when(
+      (p5b_thrs < 35) 
+      & (p5e %in% c("05","06")) ~ "1 | OH35RM",
+      between(p5b_thrs, 35, 998) 
+      & ((p6b2 >= 1 & p6b2 <= salario) | (p6c %in% 1:2)) ~ "2 | OH35SM",
+      between(p5b_thrs, 49, 998) 
+      & ((p6b2 > salario & p6b2 <= 2*salario) | p6c == 3) ~ "3 | OH48SM",
+    )
+  ) %>% 
+  # Comparación
+  right_join(sdem, by = coe_id) %>% 
+  count(tcco, tcco2)
+```
+
+# Población desocupada
+
+```{r cache=TRUE}
+desocup <- 
+  coe1 %>% 
+  filter(
+    p1c == 11 
+    | (p1b == 2 & (p2_1 == 1 | p2_2 == 2 | p2_3 == 3) & p2b == 1 & !(p2c %in% c(2,9))) 
+    | ((p1d %in% c(2,9)) & (p2_1 == 1 | p2_2 == 2 | p2_3 == 3) & p2b == 1 & !(p2c %in% c(2,9)))
+  )
+
+# Comparación
+desocup %>% 
+  mutate(.id = 2) %>% 
+  right_join(sdem, by = coe_id) %>% 
+  count(clase2, .id)
+```
+
+## Duración del desempleo
+
+```{marginfigure}
+**P2a:** ¿En qué fecha comenzó ... a buscar trabajo (o comenzó con los preparativos para poner el negocio)?
+```
+
+```{marginfigure}
+<b>D_*:</b>  Fecha del resultado definitivo
+```
+
+```{marginfigure}
+**Nota:** El número de días por mes se considera de 30.4.
+```
+
+```{r}
+dur <- 
+  desocup %>% 
+  # Unión con HOG para conocer el día de la encuesta
+  left_join(
+    hog %>% select(all_of(coe_id[-10]), d_dia:d_anio), 
+    by = coe_id[-10]
+  ) %>%
+  mutate(
+    across(c(p2a_dia:p2a_anio, d_dia:d_anio), as.numeric),
+    tdias1 = ifelse(p2a_dia < 99 & p2a_dia > 0, p2a_dia, round(p2a_sem*7 - 3.5)),
+    tdias1 = tdias1 + (p2a_mes-1)*30.4 + (p2a_anio-1)*365,
+    tdias2 = d_dia + (d_mes-1)*30.4 + (2000+d_anio-1)*365,
+    dias_trans = case_when(
+      (p2a_dia == 99 & p2a_sem == 9) | p2a_mes == 99 | p2a_anio == 9999
+      | (p2a_dia == 0 & p2a_sem == 0) | p2a_mes == 0 | p2a_anio == 0 
+      | (is.na(p2a_dia) & is.na(p2a_sem)) ~ 999999,
+      d_dia == 99 | d_mes == 99 | d_anio == 99 | d_dia == 0 | d_mes == 0 | d_anio == 0 ~ 999999,
+      tdias2 < tdias1 ~ 999999,
+      tdias2 == tdias1 ~ 1,
+      T ~ round(tdias2 - tdias1)
+    ),
+    dur_des2 = as.numeric(cut(dias_trans, breaks = c(0,30,90,180,365,999998,999999), include.lowest = TRUE))
+  ) 
+
+# Comparación
+dur %>% 
+  left_join(sdem, by = coe_id) %>%
+  count(dur_des, dur_des2)
+```
+
+De manera general, la reconstrucción realizada concuerda en la mayoría de los casos;
+hay algunos donde la clasificación propuesta difiere a la precodificada, esto puede ser 
+por el redondeo. 
+
+Sin embargo hay un caso donde la diferencia es grande, el individuo está precodificado 
+con 5 (Más de un año) y el proceso lo establece con 2 (Más de 1 mes y menor a 3). 
+
+```{r}
+dur %>% 
+  left_join(sdem, by = coe_id) %>%
+  select(p2a_dia:p2a_anio, d_dia:d_mes, dias_trans, dur_des, dur_des2) %>% 
+  filter(dur_des != dur_des2)
+```
+
+Al observar en los casos discrepantes se observa que existe un error en la precodificación original, 
+pues en la observación antes mencionada los datos muestran que tal persona sólo ha buscado empleo 
+por 51 días, y en otras la diferencia es considerable, pues por 10, 15 ó 20 días están mal clasificadas,
+aún así el número de casos sólo asciende a 130.
