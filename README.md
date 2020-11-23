@@ -33,7 +33,7 @@ Trabajos y proyectos del curso Análisis Demográfico
 
 ### Semana 6
 
-7. [Reconstrucción de Variables.](https://mnar99.github.io/AnalisisDemo/R/NEd) :hammer_and_wrench:
+7. [Reconstrucción de Variables.](https://mnar99.github.io/AnalisisDemo/R/RVenoe) :hammer_and_wrench:
 > * INEGI. Encuesta Nacional de Ocupación y Empleo 2020, III Trimestre. ENOE<sup>N</sup>
 ---
 
