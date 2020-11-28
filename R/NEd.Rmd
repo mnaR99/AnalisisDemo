@@ -2,9 +2,10 @@
 title: "Nivel Educativo"
 subtitle: "Análisis Demográfico"
 author: "Jacob Hernández"
-date: "`r Sys.Date()`"
+date: "2020-11-14"
 output: 
   tint::tintHtml:
+    anchor_sections: false
     includes:
       in_header: header.html
 bibliography: refs.bib
@@ -12,7 +13,7 @@ link-citations: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "ragg_png")
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dev = "svglite")
 options(knitr.kable.NA = '')
 
 library(tidyverse)

@@ -2,9 +2,10 @@
 title: "Modelo de crecimiento logístico"
 subtitle: "Análisis Demográfico"
 author: "Jacob Hernández"
-date: "`r Sys.Date()`"
+date: "2020-09-28"
 output: 
   tint::tintHtml:
+    anchor_sections: false
     includes:
       in_header: header.html
 bibliography: refs.bib
@@ -12,7 +13,7 @@ link-citations: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "ragg_png")
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dev = "svglite")
 
 library(tidyverse)
 library(hrbrthemes)
@@ -46,13 +47,19 @@ método de totales parciales.
 
 ```{marginfigure}
 Si el número de observaciones no es múltiplo de 3, entonces se deben descartar una o dos observaciones.
+```
 
+```{marginfigure}
 Si el residuo es 1, entonces se debe descartar una observación al principio o al final.
+```
 
+```{marginfigure}
 Cuando el residuo es 2, entonces una observación al principio y una al final, o ambas al principio o ambas 
 al final, deben descartarse.
+```
 
-**Nota:** En este caso se descartan la primera (1 y 2) y la final (2).
+```{marginfigure}
+**Nota:** En este caso se descartan la primera (Residuo igual a 1 o 2) y la última (2) observación.
 ```
 
 ```{r}
@@ -209,10 +216,11 @@ iraq_growth %>%
 
 Lo curioso es que, Iraq es un país que a inicios del siglo XXI fue el centro de atención y conflicto bélico internacional, 
 mismo que concluyó a finales del 2011, dejando un desastre social, económico y humano en la nación iraquí. Como consecuencia 
-la destrucción, la corrupción y la inseguridad condujeron al país a tener elevadas tasas de desempleo. Lo anterior da pie
-a entender que el crecimiento poblacional no pudo haberse dado por un incremento en las tasas de natalidad, pues la situación
-social no lo sustentaría, además, debido al número de bajas de guerra estas deberían ser increíblemente superiores a los años
-anteriores para apoyar el aumento de la población. 
+la destrucción, la corrupción y la inseguridad condujeron al país a tener elevadas tasas de desempleo. 
+
+Lo anterior da pie a entender que el crecimiento poblacional no pudo haberse dado por un incremento en las tasas de natalidad, 
+pues la situación social no lo sustentaría, además, debido al número de bajas de guerra estas deberían ser muy superiores a 
+los años anteriores para apoyar el aumento de la población. 
 
 Al mismo tiempo que concluía la guerra de Iraq, otro conflicto estaba iniciando en la nación vecina, Siria. Esto obligó a los
 miles de iraquíes que habían huido de la guerra en su país a volver a casa junto a miles de sirios que huían de los nuevos 

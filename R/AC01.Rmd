@@ -2,16 +2,17 @@
 title: "Modelo de crecimiento logístico y de Gompertz"
 subtitle: "Análisis Demográfico"
 author: "Jacob Hernández"
-date: "`r Sys.Date()`"
+date: "2020-09-30"
 output: 
   tint::tintHtml:
+    anchor_sections: false
     includes:
       in_header: header.html
 bibliography: refs.bib
 link-citations: yes
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "ragg_png")
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dev = "svglite")
 options(knitr.kable.NA = '')
 
 library(tidyverse)
@@ -28,7 +29,8 @@ theme_update(
 # Función de ajuste 
 
 ```{r}
-growth_model <- function(training, date_col = "date", pop_col = "pop", type = c("log","gmp")){
+growth_model <- function(training, date_col = "date", pop_col = "pop", 
+                         type = c("log","gmp")){
   
   data <- as.data.frame(training)
   
@@ -46,22 +48,18 @@ growth_model <- function(training, date_col = "date", pop_col = "pop", type = c(
   
   if (type == "log") {
     s <- map_dbl(0:2, ~sum(1/data[1:n + .x*n, pop_col]))
-  
-    c <- ((s[3]-s[2])/(s[2]-s[1]))**(1/n)
-    h <- (s[2]-s[1])*(c-1)/(c**n-1)**2
-    k <- 1/n*(s[1]-(c**n-1)/(c-1)*h) 
-    
-    return(function(date) 1/(k+h*c**((date-fd)/dd)))
-    
   } else if (type == "gmp") {
     s <- map_dbl(0:2, ~sum(log(data[1:n + .x*n, pop_col])))
+  }
   
-    c <- ((s[3]-s[2])/(s[2]-s[1]))**(1/n)
-    h <- (s[2]-s[1])*(c-1)/(c**n-1)**2
-    k <- 1/n*(s[1]-(c**n-1)/(c-1)*h) 
-    
-    return(function(date) exp(k+h*c**((date-fd)/dd)))
-    
+  c <- ((s[3]-s[2])/(s[2]-s[1]))**(1/n)
+  h <- (s[2]-s[1])*(c-1)/(c**n-1)**2
+  k <- 1/n*(s[1]-(c**n-1)/(c-1)*h)
+  
+  if (type == "log") {
+    function(date) 1/(k+h*c**((date-fd)/dd))
+  } else if (type == "gmp") {
+    function(date) exp(k+h*c**((date-fd)/dd))
   }
 }
 ```
@@ -70,7 +68,7 @@ growth_model <- function(training, date_col = "date", pop_col = "pop", type = c(
 
 ```{r}
 data <- tibble(
-  t = (seq (1950, 2000, by=10)),
+  t = seq(1950, 2000, 10),
   P = c(8.31,10.39, 12.66, 14.81, 17.17, 19.27)
 )
 
@@ -90,22 +88,22 @@ projections <- data %>%
 ```{r echo=FALSE, fig.margin = TRUE}
 projections %>% 
   ggplot(aes(t, P)) +
-    stat_function(fun = mod2, geom = "area", fill = "#F28E2C", alpha = 0.3) +
-    stat_function(fun = mod1, geom = "area", fill = "#4E79A7", alpha = 0.5) +
+    stat_function(fun = mod2, geom = "area", fill = "#F28E2C") +
+    stat_function(fun = mod1, geom = "area", fill = "#4E79A7") +
     geom_line() +
     geom_point(shape = 21, fill = "#FFFFFF") +
     expand_limits(y = 0) +
     scale_y_continuous(breaks = seq(5,25,5)) +
     labs(
       title = "Proyecciones de población",
-      subtitle = "Modelo <b style='color:#4E79A7'>Logistico</b> y de <b style='color:#F28E2C'>Gompertz</b>",
+      subtitle = "Modelo <b style='color:#4E79A7;'>logístico</b> y <b style='color:#F28E2C;'>de Gompertz</b>.",
       y = "Millones de habitantes",
       x = "Año"
       ) +
     theme(
       plot.subtitle = element_markdown(),
-      panel.grid.major = element_line(linetype = 3),
-      panel.grid.minor = element_line(linetype = 3)
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor.y = element_blank()
     )
 ```
 

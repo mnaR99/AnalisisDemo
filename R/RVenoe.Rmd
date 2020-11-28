@@ -2,7 +2,7 @@
 title: "Reconstrucción de variables"
 subtitle: "Análisis Demográfico"
 author: "Jacob Hernández"
-date: "`r Sys.Date()`"
+date: "2020-11-23"
 output: 
   tint::tintHtml:
     anchor_sections: false
@@ -13,7 +13,7 @@ link-citations: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "ragg_png", comment = "#")
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dev = "svglite", comment = "#")
 options(knitr.kable.NA = '')
 
 library(tidyverse)
@@ -42,7 +42,7 @@ hog <-
 
 ## Campos de Identificación Única para los cuestionarios
 
-```{r echo=FALSE, fig.asp=0.4}
+```{r echo=FALSE, fig.asp=0.4, dev="ragg_png"}
 png::readPNG(here::here("img/enoe_id.png")) %>% 
   grid::grid.raster()
 ```

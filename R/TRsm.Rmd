@@ -2,9 +2,10 @@
 title: "Resumen de las primeras unidades"
 subtitle: "Análisis Demográfico"
 author: "Jacob Hernández"
-date: "`r Sys.Date()`"
+date: "2020-11-16"
 output: 
   tint::tintHtml:
+    anchor_sections: false
     includes:
       in_header: header.html
 bibliography: refs.bib
@@ -12,7 +13,7 @@ link-citations: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "CairoSVG", echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dev = "svglite", echo = FALSE)
 options(knitr.kable.NA = '')
 
 library(tidyverse)
@@ -165,16 +166,31 @@ pop_proy %>%
     country = recode(country, "France" = "Francia", "South Africa" = "Sudáfrica")
   ) %>% 
   ggplot(aes(year)) +
-    geom_line(aes(y = log_model, color = country, linetype = "Logístico"), lwd = 0.1) +
-    geom_line(aes(y = gmp_model, color = country, linetype = "Gompertz"), lwd = 0.1) +
-    geom_point(aes(y = pop, color = country), shape = 21, fill = "#FFFFFF", show.legend = F) +
+    geom_area(
+      aes(y = gmp_model, fill = country, linetype = "Gompertz"), 
+      position = 'identity', alpha = 0.7
+    ) +
+    geom_line(
+      aes(y = log_model, group = country, linetype = "Logístico"), 
+      lwd = 0.2, position = 'identity'
+    ) +
+    geom_point(
+      aes(y = pop, color = country), shape = 21, 
+      fill = "#FFFFFF", show.legend = F
+    ) +
     facet_wrap(~sex) +
     scale_y_comma() +
+    scale_fill_manual(values = c("#1075A8","#CAC753")) +
+    scale_color_manual(values = c("#1075A8","#CAC753")) +
+    scale_linetype_manual(
+      values = c(0, 1), 
+      guide = guide_legend(override.aes = list(fill = c(1,NA)))
+    ) +
     labs(
-      title = "Gráfico 1.",
-      subtitle = "Población proyectada según modelos por país y sexo.",
+      title = "Proyección de Poblaciones",
+      subtitle = "Modelos por país y sexo.",
       caption = "Fuente: Elaboración propia.",
-      color = "País",
+      fill = "País",
       linetype = "Modelo"
     ) +
     theme(
@@ -182,8 +198,7 @@ pop_proy %>%
       panel.grid.minor.x =  element_blank(),
       axis.title.x = element_blank(),
       axis.title.y = element_blank(),
-      legend.position = "right",
-      plot.margin = margin(t = 10, b = 10),
+      plot.margin = margin(15, 15, 5, 10),
       plot.caption.position = "plot"
     )
 ```
@@ -299,17 +314,16 @@ p2 <-
     scale_x_continuous() +
     coord_equal() +
     labs(
-      title = "Gráfico 2.",
-      subtitle = "Índice de nasculinidad por país, edad y año.",
+      title = "Índice de masculinidad",
+      subtitle = "Por país, edad y año.",
       caption = "Fuente: Elaboración propia."
     ) +
     theme(
       axis.title.x = element_blank(),
       axis.title.y = element_blank(),
       legend.title = element_blank(),
-      plot.subtitle = element_markdown(),
       plot.caption.position = "plot",
-      plot.margin = margin(t = 20, b = 10)
+      plot.margin = margin(15, 15, 0, 15)
     )
 
 ggiraph(ggobj = p2, width_svg = 8, height_svg = 5, width = 1)
@@ -393,28 +407,30 @@ de la población, en este caso sólo analizaremos el caso de Francia.
 
 ## Resultados
 
-```{r fig.dim=c(8,5)}
+```{r fig.margin = TRUE}
 ng_fr %>% 
   pivot_longer(2:3, names_to = "rate") %>% 
   mutate(rate = fct_reorder(rate, value)) %>% 
   ggplot(aes(year, value*1e3, color = rate)) +
-    geom_line(lwd = 1.2) +
-    geom_point(shape = 21, fill = "#FFFFFF", show.legend = F) +
-    expand_limits(y = 0) +
-    scale_color_manual(values = c("#5E6890","#D90035")) +
+    geom_line(lwd = 1.3) +
+    geom_point(shape = 21, fill = "#FFFFFF", show.legend = F, size = 2) +
+    expand_limits(y = 8) +
+    scale_color_manual(values = c("#024B7A","#D90035")) +
     labs(
-      title = "Gráfico 3.",
-      subtitle = "Componentes del crecimiento natural.",
+      title = "Componentes del crecimiento natural",
+      subtitle = "Francia",
       caption = "Fuente: Elaboración propia."
     ) +
     theme(
-      legend.position = "bottom",
+      legend.position = "top",
       legend.title = element_blank(),
       axis.title.x = element_blank(),
       axis.title.y = element_blank(),
-      panel.grid.major.x = element_blank(),
+      # panel.grid.major.x = element_blank(),
       panel.grid.minor.x = element_blank(),
-      plot.margin = margin(t = 10, b = 10)
+      panel.grid.minor.y = element_blank(),
+      plot.margin = margin(20, 20, 5, 20),
+      plot.caption.position = "plot"
     )
 ```
 

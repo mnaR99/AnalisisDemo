@@ -2,9 +2,10 @@
 title: "Estructura por grupos de edad y sexo"
 subtitle: "Análisis Demográfico"
 author: "Jacob Hernández"
-date: "`r Sys.Date()`"
+date: "2020-11-03"
 output: 
   tint::tintHtml:
+    anchor_sections: false
     includes:
       in_header: header.html
 bibliography: refs.bib
@@ -12,7 +13,7 @@ link-citations: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(warning = FALSE, message = FALSE, dpi = 300, dev = "ragg_png")
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dev = "svglite")
 options(knitr.kable.NA = '')
 
 library(tidyverse)
@@ -83,14 +84,11 @@ pob15_74 %>%
   knitr::kable(
     align = "clcrrr", 
     col.names = c("No.", "Municipio", "Grupo Quinquenal", "Población", "Distribución", "Distribución Acumulada"), 
-    caption = "**Tabla 1**<br>*Estructura por grupos quinquenales del municipio San Felipe del Progreso (074), Estado de México, 2015.*"
+    caption = "**Tabla 1.**<br>
+    Estructura por grupos quinquenales del municipio San Felipe del Progreso (074), Estado de México, 2015.<br>
+    <i style='color:#A4A4A4'>Nota: Se omiten registros donde la edad no es especificada.</i>"
   ) %>% 
-  collapse_rows(columns = 1:2, valign = "mid") %>% 
-  footnote(
-    "Se omiten registros donde la edad no es especificada.",
-    general_title = "Nota:",
-    footnote_as_chunk = T
-  )
+  collapse_rows(columns = 1:2, valign = "mid")
 ```
 
 De acuerdo con la distribución acumulada de la población, podemos concluir que este municipio
@@ -118,18 +116,18 @@ egedadsexo <-
     sexo = ifelse(sexo == 1, "Hombres", "Mujeres")
   ) %>% 
   count(mun, nom_mun, sexo, gedad, wt = factor, name = "pob") %>%
-  group_by(sexo) %>% 
+  group_by(sexo) %>%
   mutate(prop = pob/sum(pob))
 ```
 
 ## Resultados
 
-```{r echo=FALSE, fig.dim=c(12,8)}
+```{r echo=FALSE, fig.asp=1, fig.align="center"}
 egedadsexo %>% 
+  mutate(pob = ifelse(sexo == "Mujeres", pob, -pob)) %>% 
   ggplot(aes(gedad, fill = sexo)) +
     geom_col(aes(y = pob)) +
-    geom_col(aes(y = -pob)) +
-    facet_wrap(~sexo) +
+    facet_wrap(~sexo, scales = "free_x") +
     coord_flip() +
     scale_y_continuous(labels = scales::trans_format(abs, comma_format())) +
     scale_fill_manual(values = c("#EDC949","#B07AA2")) +
@@ -137,6 +135,10 @@ egedadsexo %>%
       subtitle = "San Felipe del Progreso, México",
       title = "Población en valores absolutos",
       caption = "INEGI. Encuesta Intercensal 2015"
+    ) +
+    theme(
+      strip.text = element_text(hjust = 0.5),
+      plot.margin = margin(20, 20, 5, 20)
     )
 ```
 
@@ -148,18 +150,22 @@ no en gran medida; este resultado se contrasta con el análisis del segundo grá
 observar que la mayoría de los hombres se concentra sobre todo en los varones menores a los 25 años, 
 mientras que la distribución por edad de las mujeres es más regular.
 
-```{r echo=FALSE, fig.dim=c(12,8)}
+```{r echo=FALSE, fig.asp=1, fig.align="center"}
 egedadsexo %>% 
+  mutate(prop = ifelse(sexo == "Mujeres", prop, -prop)) %>% 
   ggplot(aes(gedad, fill = sexo)) +
     geom_col(aes(y = prop)) +
-    geom_col(aes(y = -prop)) +
-    facet_wrap(~sexo) +
+    facet_wrap(~sexo, scales = "free_x") +
     coord_flip() +
-    scale_y_continuous(labels = scales::trans_format(abs, percent_format())) +
+    scale_y_continuous(labels = scales::trans_format(abs, percent_format()), breaks = seq(-12,12,3)/100) +
     scale_fill_manual(values = c("#EDC949","#B07AA2")) +
     labs(
       subtitle = "San Felipe del Progreso, México",
       title = "Población en valores relativos por sexo",
       caption = "INEGI. Encuesta Intercensal 2015"
+    ) +
+    theme(
+      strip.text = element_text(hjust = 0.5),
+      plot.margin = margin(20, 20, 5, 20)
     )
 ```
