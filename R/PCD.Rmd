@@ -1,0 +1,182 @@
+---
+title: "Proyecciones: Componentes por Cohorte"
+subtitle: "Análisis Demográfico"
+author: "Jacob Hernández"
+date: "2020-12-04"
+output: 
+  tint::tintHtml:
+    anchor_sections: false
+    includes:
+      in_header: header.html
+bibliography: refs.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dev = "svglite")
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+library(hrbrthemes)
+library(kableExtra)
+library(scales)
+
+theme_set(theme_ipsum_rc())
+```
+
+## Datos procesados
+
+Los datos requeridos, fueron procesados en otro documento para mantener
+enfocar este documento específicamente a las proyecciones.^[https://github.com/mnaR99/AnalisisDemo/blob/master/R/PCD-Data.Rmd]
+
+```{r results='hide'}
+info <- read_rds(here::here("data/PCD/sin.rds"))
+list2env(info, .GlobalEnv)
+```
+
+## Preparación de objetos para modelar
+
+```{r}
+## Razón de sobrevivencia
+sin00 <- 
+  pop00 %>% 
+  left_join(tv) %>% 
+  left_join(mig) %>%  
+  transmute(
+    sex, age, nmr,
+    sr = case_when(
+      age == "0 - 4 años" ~ L/500e3,
+      age == "85 años y más" ~ L/(L + nth(L,-2)),
+      TRUE ~ L/lag(L)
+    ), 
+    p00 = p
+  )
+
+# Proporción de Nacimientos Hombres en el año 2000
+prop_m <- tbirths00["male"]/sum(tbirths00)
+
+# Objeto para modelar
+cd <- list(data = sin00, fert = fert)
+```
+
+El objeto `cd`, es una lista que tiene como primer elemento la población
+por sexo, edad, junto con sus respectivas tasas netas de migración y de
+sobrevivencia.
+
+# Función para proyectar la población
+
+```{r}
+apply_cycle <- function(cd, on, year, prop_male = prop_m){
+  
+  first_step <-
+    cd$data %>% 
+    mutate(
+      pn = case_when(
+        age == "85 años y más" ~ sr*(lag({{ on }}) + {{ on }}),
+        TRUE ~ sr*lag({{ on }})
+      ),
+      p = pn * (1+nmr)
+    )
+  
+  second_step <-
+    cd$fert %>% 
+    left_join(
+      first_step %>% 
+        ungroup() %>% 
+        filter(sex == "female") %>% 
+        select(age, p)
+    ) %>%
+    mutate(
+      across({{on}}:p, ~.*fr, .names = "b{.col}")
+    )
+  
+  expb <-
+    second_step %>% 
+    select(last_col(1:0)) %>% 
+    colSums() %>% 
+    mean() * 5
+  
+  cd$data <- 
+    first_step %>% 
+    mutate(
+      pn = case_when(
+        age == "0 - 4 años" & sex == "male" ~ prop_male * expb,
+        age == "0 - 4 años" & sex == "female" ~ (1-prop_male) * expb,
+        TRUE ~ pn
+      ),
+      p = pn * (1+nmr)
+    ) %>% 
+    select(-pn) %>% 
+    rename("p{year}" := p)
+  
+  cd$fert <- 
+    second_step %>% 
+    select(-last_col(1:0)) %>% 
+    rename("p{year}" := p)
+  
+  return(cd)
+}
+```
+
+# Resultados
+
+```{r}
+sinproy <- cd %>% 
+  apply_cycle(p00, "05") %>%  
+  apply_cycle(p05, "10")
+
+print(sinproy)
+```
+
+La salida del modelo arroja los resultados principales en el primer elemento,
+el segundo sólo se guarda en cada ciclo como referencia para los siguientes cálculos.
+
+## Comparación
+
+En comparación con los resultados oficiales publicados por el INEGI, para las 
+edades superiores a los 4 años, la estimación es buena sin embargo existe un problema
+con las edades menores a 5, esto por la tasa neta de migración estimada, pues al ajustar
+la migración este conjunto de la población se vió muy afectado en cada ciclo y por ello 
+la diferencia con respecto al 2010 es de casi 200,00 personas.
+
+```{r echo=FALSE}
+ptot <- 
+  sinproy$data %>% 
+  group_by(age) %>%
+  summarise(
+    across(p00:p10, sum, .names = "{.col}_total")
+  )
+
+sin05 <- 
+  readxl::read_excel(
+    here::here("data/PCD/Cont2005_Sin_Poblacion.xls"),
+    sheet = 3, range = "C10:E131",
+    col_names = c("age","age2","CPyV 2005")
+  ) %>% 
+  filter(age2 == "Total") %>% 
+  select(-age2)
+
+sin10 <-
+  readxl::read_excel(
+    here::here("data/PCD/01_02B_MUNICIPAL_25.xls"),
+    range = "D11:E32",
+    col_names = c("age","CPyV 2010")
+  ) %>% 
+  mutate(
+    age = str_replace(age, "-", " - ") %>% 
+      recode("00 - 04 años" = "0 - 4 años", "05 - 09 años" = "5 - 9 años")
+  )
+
+ptot %>% 
+  full_join(sin05) %>% 
+  full_join(sin10) %>% 
+  relocate(
+    age, p00_total, contains("05"), contains("10")
+  ) %>% 
+  janitor::adorn_totals() %>%
+  mutate(across(-1, ~comma(., 1))) %>% 
+  kable(
+    align = "crrrrr",
+    col.names = c("Edad", "2000", "2005", "CPyV 2005", "2010", "CPyV 2010")
+  )
+```
