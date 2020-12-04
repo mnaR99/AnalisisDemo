@@ -1,0 +1,239 @@
+---
+title: "Proyecciones: Componentes por Cohorte - Datos"
+subtitle: "Análisis Demográfico"
+author: "Jacob Hernández"
+date: "2020-11-29"
+output: 
+  tint::tintHtml:
+    anchor_sections: false
+    includes:
+      in_header: header.html
+bibliography: refs.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dev = "svglite", echo = FALSE)
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+```
+
+## Funciones para el Prorateo y Limpieza rápida de Censos
+
+```{r clean-census}
+prorate <- function(p, e, na_string) {
+  res <- sum(p) / sum(p[!(e %in% na_string)]) * p
+  res[e %in% na_string] <- NA
+  return(res)
+}
+
+clean_census_sex <- function(data, age_2, ne = "No especificado") {
+  data %>% 
+  select(-total) %>% 
+  filter(str_detect(age, "-|más|especificado")) %>%
+  mutate(
+    age = {{age_2}},
+    across(-1, ~ prorate(., age, ne))
+  ) %>% 
+  pivot_longer(-1, names_to = "sex") %>% 
+  na.omit() %>% 
+  count(sex, age, wt = value, name = "p") %>% 
+  group_by(sex)
+}
+```
+
+## Población 2000
+
+```{r censo-2000}
+c00 <- 
+  readxl::read_excel(
+    here::here("data/PCD/CPyV2000_Sin_Poblacion.xlsx"), 
+    sheet = 3, range = "C10:F131", 
+    col_names = c("age","total","male","female")
+  )
+
+pop00 <-
+  c00 %>% 
+  clean_census_sex(
+    fct_collapse(fct_inorder(age), "85 años y más" = c("85 - 89 años", "90 - 94 años", "95 - 99 años", "100 y más años"))
+  )
+```
+
+## Natalidad 2000
+
+```{r natalidad-2000}
+births_INEGI <-
+  read_csv(
+    here::here("data/PCD/NACIM_Sin.csv"),
+    skip = 8, n_max = 10,
+    col_names = c("age","total","male","female","na"),
+    locale = readr::locale(encoding = "latin1")
+  )
+
+births00 <- 
+  births_INEGI %>% 
+  transmute(
+    age = str_replace(age, " a ", " - ") %>% str_remove("De ") %>% str_squish(),
+    age = recode(age, "50 y más años" = "45 - 49 años"),
+    across(total, ~prorate(., age, c("Menor de 15 años", "No especificado")))
+  ) %>% 
+  na.omit() %>% 
+  count(age, wt = total, name = "b")
+
+tbirths00 <- colSums(births_INEGI[,4:3])
+
+fert <- 
+  births00 %>% 
+  left_join(
+    pop00 %>% filter(sex == "female")
+  ) %>% 
+  transmute(age, fr = b/p, p00 = p)
+```
+
+## Mortalidad 2000
+
+```{r mortalidad-2000}
+deaths <- 
+  read_csv(
+    here::here("data/PCD/MORT_Sin.csv"),
+    skip = 7, n_max = 20,
+    col_names = c("age","total","male","female","na"),
+    locale = readr::locale(encoding = "latin1")
+  ) %>% 
+  transmute(
+    age = fct_inorder(str_replace(age, "-", " - ")),
+    across(3:4, ~prorate(., age, "No especificado"), .names = "d_{.col}")
+  ) %>% 
+  pivot_longer(-1, names_to = c(".value", "sex"), names_pattern = "(.+)_(.*)") %>% 
+  na.omit() %>% 
+  arrange(sex, age) %>% 
+  group_by(sex)
+```
+
+## Tabla de vida
+
+```{r tabla-de-vida-2000}
+d0 <- pull(slice(deaths, 1), d)
+q0 <- unname(d0 / tbirths00)
+
+p_1_4 <- colSums(c00[2:5, 4:3])
+d_1_4 <- pull(slice(deaths, 2), d)
+m_1_4 <- unname(d_1_4 / p_1_4)
+q_1_4 <- 2*4*m_1_4 / (2 + 4*m_1_4)
+
+q_0_5 <- 1 - (1-q0)*(1-q_1_4)
+  
+tv <- 
+  pop00 %>% 
+  left_join(deaths) %>%
+  mutate(
+    m = d/p, 
+    q = case_when(
+      age == "0 - 4 años" ~ ifelse(sex == "female", q_0_5[1], q_0_5[2]), 
+      age == "85 años y más" ~ 1,
+      TRUE ~ 2*5*m/(2+5*m)
+    ),
+    l = 100e3 * cumprod(1-lag(q, default = 0)),
+    L = case_when(
+      age == "85 años y más" ~ l/m,
+      TRUE ~ zoo::rollsum(l, 2, TRUE) * 2.5
+    )
+  ) %>% 
+  select(sex, age, L)
+```
+
+## Población 1995: Migración
+
+```{r conteo-1995}
+pop95 <- 
+  readxl::read_excel(
+    here::here("data/PCD/Cont95Enum_Sin_Poblacion.xlsx"), 
+    sheet = 3, range = "C11:F132", 
+    col_names = c("age","total","male","female")
+  ) %>% 
+  clean_census_sex(
+    fct_collapse(fct_inorder(age), "80 - 84 años" = c("85 - 89 años", "90 - 94 años", "95 - 99 años", "100 y más años")),
+    "no especificado"
+  )
+```
+
+## Nacimientos 1995 - 1999: Migración
+
+```{r natalidad-95-99}
+b9599 <-
+  read_csv(
+    here::here("data/PCD/NACIM9099_Sin.csv"),
+    skip = 11, n_max = 5,
+    col_names = c("year","total","male","female","na"),
+  ) %>% 
+  summarise(across(female:male, sum)) %>% 
+  unlist()
+```
+
+## Estimación de migración por el método indirecto de tablas de vida
+
+```{r migracion-2000}
+# Estimación por Razón de Sobrevivencia entre Censos
+#
+# cn00 <-
+#   readxl::read_excel(
+#     here::here("data/PCD/CPyV2000_NAL_Poblacion.xlsx"),
+#     sheet = 3, range = "C10:F131",
+#     col_names = c("age","total","male","female")
+#   ) %>%
+#   clean_census_sex(
+#     fct_collapse(fct_inorder(age), "85 años y más" = c("85 - 89 años", "90 - 94 años", "95 - 99 años", "100 y más años"))
+#   )
+# 
+# cn95 <-
+#   readxl::read_excel(
+#     here::here("data/PCD/Cont95Enum_NAL_Poblacion.xlsx"),
+#     sheet = 3, range = "C11:F132",
+#     col_names = c("age","total","male","female")
+#   ) %>%
+#   clean_census_sex(
+#     fct_collapse(fct_inorder(age), "80 - 84 años" = c("80 - 84 años", "85 - 89 años", "90 - 94 años", "95 - 99 años", "100 y más años")),
+#     "no especificado"
+#   )
+
+mig <-
+  pop00 %>% 
+  left_join(
+    pop95, by = c("sex","age"), suffix = c("00","95")
+  ) %>%
+  # left_join(
+  #   cn00, by = c("sex","age")
+  # ) %>%
+  # left_join(
+  #   cn95, by = c("sex","age"), suffix = c("N00","N95")
+  # ) %>%
+  left_join(
+    tv %>% select(sex, age, L), by = c("sex","age")
+  ) %>% 
+  mutate(
+    # mig = case_when(
+    #   age == "0 - 4 años" ~ p00 - ifelse(sex == "female", b9599[1], b9599[2])*L/500e3,
+    #   age == "85 años y más" ~ p00 - lag(p95) * pN00/lag(pN95),
+    #   TRUE ~ p00 - lag(p95) * pN00 / lag(pN95)
+    # ),
+    mig = case_when(
+      age == "0 - 4 años" ~ p00 - ifelse(sex == "female", b9599[1], b9599[2])*L/500e3,
+      age == "85 años y más" ~ p00 - lag(p95) * L/(L + lag(L)),
+      TRUE ~ p00 - lag(p95) * L / lag(L)
+    ),
+    nmr = case_when(
+      age == "85 años y más" ~ mig/p00,
+      TRUE ~ mig/(p00/2 + p95/2)
+    )
+  ) %>%
+  select(sex, age, nmr)
+```
+
+```{r}
+info <- list(pop00, tv, mig, fert, tbirths00)
+
+names(info) <- c("pop00","tv","mig","fert","tbirths00")
+
+write_rds(info, here::here("data/PCD/sin.rds"))
+```
