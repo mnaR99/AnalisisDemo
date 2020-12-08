@@ -1,5 +1,5 @@
 ---
-title: "Hogares con Adultos Mayores, México 2015"
+title: "Hogares con adultos mayores, México 2015"
 subtitle: "Análisis Demográfico"
 author: "Jacob Hernández"
 date: "2020-12-05"
