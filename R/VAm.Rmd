@@ -159,7 +159,7 @@ hogs_je %>%
 
 A pesar de las diferencias socio-económicas entre ambas entidades, en este nivel de
 desagregación de los hogares, no existe gran diferencia, pues en ambos casos la residencia
-de al menos un adulto mayor se da en 3 de cada 10 hogares de cada entidad, con una 
+de al menos un adulto mayor se da en 3 de cada 10 hogares de cada entidad, con un
 ligero aumento en el caso de Guerrero.
 
 # Condición de actividad
