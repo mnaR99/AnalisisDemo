@@ -35,6 +35,16 @@ Trabajos y proyectos del curso Análisis Demográfico
 
 7. [Reconstrucción de Variables.](https://mnar99.github.io/AnalisisDemo/R/RVenoe) :hammer_and_wrench:
 > * INEGI. Encuesta Nacional de Ocupación y Empleo 2020, III Trimestre. ENOE<sup>N</sup>
+
+### Semana 7
+
+8. Proyeccion de población por componentes demográficos por cohorte.
+
+### Semana 8
+
+9. [Hogares envejecidos.](https://mnar99.github.io/AnalisisDemo/R/VAm)
+> * INEGI. Encuesta Intercensal 2015
+
 ---
 
 ## Proyectos
