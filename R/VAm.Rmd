@@ -1,0 +1,223 @@
+---
+title: "Hogares con Adultos Mayores, México 2015"
+subtitle: "Análisis Demográfico"
+author: "Jacob Hernández"
+date: "2020-12-05"
+output: 
+  tint::tintHtml:
+    anchor_sections: false
+    includes:
+      in_header: header.html
+bibliography: refs.bib
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, dev = "svglite")
+options(knitr.kable.NA = '')
+
+library(tidyverse)
+library(kableExtra)
+```
+
+```{r data, cache=TRUE, include=FALSE}
+cbFilter <- function(x, pos) filter(x, EDAD >= 60, EDAD != 999)
+
+persona_am <-
+  map_df(
+    str_c("data/eic2015/TR_PERSONA", c(12,25), ".CSV"),
+    ~ read_csv_chunked(
+      here::here(.x), 
+      callback = DataFrameCallback$new(cbFilter),
+      col_types = cols_only(
+        ID_VIV = col_character(),
+        ID_PERSONA = col_character(),
+        ENT = col_character(),
+        EDAD = col_double(),
+        SEXO = col_double(),
+        CONACT = col_double()
+      ),
+      chunk_size = 25000
+    )
+  ) %>% 
+  janitor::clean_names()
+
+vivienda <- 
+  map_df(
+    str_c("data/eic2015/TR_VIVIENDA", c(12,25), ".CSV"),
+    ~ read_csv(
+      file = here::here(.x),
+      col_types = cols_only(
+        ID_VIV = col_character(),
+        NOM_ENT = col_character(),
+        FACTOR = col_double()
+      )
+    )
+  ) %>% 
+  janitor::clean_names()
+```
+
+Con información de la Encuesta Intercensal 2015, correspondiente a los estados de 
+Sinaloa y Guerrero, el siguiente análisis está enfocado en el número de hogares 
+con al menos un adulto mayor (Hogar Envejecido), considerando aquellas personas 
+que tienen 60 o más años, y de acuerdo con la actividad a la que se dedican estos
+habitantes según la siguiente clasificación:
+
+```{r echo=FALSE}
+tribble(
+  ~ "Condición de actividad", ~ "Características",
+  "Jubilado o pensionado", "Hogares con adultos mayores que reciben pensión o están jubilados.",
+  "Trabaja", "Hogares con adultos mayores que continúan insertos en el mercado laboral.",
+  "No trabaja", "Hogares con adultos mayores que no están insertos en el mercado laboral.",
+  "Mixto", "Hogares con al menos dos adultos mayores que realizan actividades diferentes."
+) %>% 
+  kable()
+```
+
+# Hogares Jovenes y Envejecidos
+
+```{marginfigure}
+**CONACT:** Entonces, ¿la semana pasada:
+<span style="font-size: 75%">
+  <br>&nbsp;&nbsp;**10.** trabajó?
+  <br>&nbsp;&nbsp;**11.** hizo o vendió algún producto?
+  <br>&nbsp;&nbsp;**12.** ayudó en algún negocio?
+  <br>&nbsp;&nbsp;**13.** crio animales o cultivó algo? *(en el terreno o en casa, para autoconsumo o venta)*
+  <br>&nbsp;&nbsp;**14.** ofreció algún servicio por un pago? *(cargó bolsas, lavó autos, cuidó niñas(os), etcétera)*
+  <br>&nbsp;&nbsp;**15.** atendió su propio negocio?
+  <br>&nbsp;&nbsp;**16.** tenía trabajo, pero no trabajó? *(por licencia, incapacidad o vacaciones)*
+  <br>&nbsp;&nbsp;**20.** buscó trabajo?
+  <br>&nbsp;&nbsp;**31.** ¿Es estudiante?
+  <br>&nbsp;&nbsp;**32.** ¿Es jubilada(o) o pensionada(o)?
+  <br>&nbsp;&nbsp;**33.** ¿Se dedica a los quehaceres de su hogar?
+  <br>&nbsp;&nbsp;**34.** ¿Tiene alguna limitación física o mental que le impide trabajar?
+  <br>&nbsp;&nbsp;**35.** ¿No trabajó?
+  <br>&nbsp;&nbsp;**99.** No especificado
+</span>
+```
+
+La base `persona_am`, es un objeto previamente procesado, que contiene únicamente a 
+los adultos mayores junto con el identificador de vivienda (`id_viv`) y la respuesta 
+de la pregunta de interés (`conact`), para identificar de manera más eficiente a los 
+hogares envejecidos.
+
+```{r cache=TRUE}
+viv_am <- 
+  persona_am %>% 
+  mutate(
+    act = case_when(
+      conact == 32 ~ "Jubilado o Pensionado",
+      conact %in% 10:16 ~ "Trabaja",
+      conact %in% c(20, 31, 33:35) ~ "No Trabaja",
+      conact == 99 ~ "No especificado"
+    )
+  ) %>% 
+  group_by(id_viv) %>% 
+  summarise(
+    th_am = ifelse(n_distinct(act) == 1, unique(act), "Mixto"),
+    hog = "Envejecido"
+  )
+```
+
+La base `viv_am`, contiene la información referente a cada vivienda encuestada por 
+entidad.
+
+```{r}
+hogs <-
+  vivienda %>% 
+  left_join(viv_am)
+
+hogs_je <-
+  hogs %>% 
+  count(nom_ent, hog, wt = factor)
+```
+
+## Resultados
+
+```{r echo=FALSE}
+hogs_je %>% 
+  mutate(
+    hog = replace_na(hog, "Joven")
+  ) %>% 
+  group_by(nom_ent) %>% 
+  mutate(p = n/sum(n)) %>% 
+  pivot_wider(names_from = nom_ent, values_from = c(n,p)) %>%
+  arrange(desc(hog)) %>% 
+  relocate(hog, contains("Guerrero")) %>% 
+  janitor::adorn_totals() %>% 
+  mutate(
+    across(starts_with("p"), ~scales::percent(., 0.1)),
+    across(starts_with("n"), ~scales::comma(., 1))
+  ) %>% 
+  kable(
+    align = "lrrrr", col.names = c("Hogar", rep(c("Absoluto", "Distribución"),2)),
+    caption = "Distribución por tipo de hogar con base en la presencia de al menos un adulto mayor."
+  ) %>% 
+  add_header_above(c(" " = 1, "Guerrero" = 2, "Sinaloa" = 2)) %>% 
+  column_spec(1, width = "10em")
+```
+
+A pesar de las diferencias socio-económicas entre ambas entidades, en este nivel de
+desagregación de los hogares, no existe gran diferencia, pues en ambos casos la residencia
+de al menos un adulto mayor se da en 3 de cada 10 hogares de cada entidad, con una 
+ligero aumento en el caso de Guerrero.
+
+# Condición de actividad
+
+```{r}
+hge <- hogs %>%
+  filter(
+    hog == "Envejecido",
+    th_am != "No especificado"
+  ) %>%
+  count(nom_ent, th_am, wt = factor)
+```
+
+## Resultados
+
+Enfocándonos únicamente en los hogares envejecidos, se observa lo siguiente:
+
+```{r echo=FALSE}
+hge %>%
+  arrange(
+    fct_relevel(th_am, "Trabaja", "No Trabaja", "Mixto", after = 1)
+  ) %>%
+  group_by(nom_ent) %>% 
+  mutate(p = n/sum(n)) %>% 
+  pivot_wider(names_from = nom_ent, values_from = c(n,p)) %>% 
+  relocate(th_am, contains("Guerrero")) %>% 
+  janitor::adorn_totals() %>% 
+  mutate(
+    across(starts_with("p"), ~scales::percent(., 0.1)),
+    across(starts_with("n"), ~scales::comma(., 1))
+  ) %>% 
+  kable(
+    align = "lrrrr", col.names = c("Actividad", rep(c("Absoluto", "Distribución"),2)),
+    caption = "Distribución por tipo de hogar con base en la condición de actividad de los adultos mayores.
+    <span style='font-size: 75%'>
+    <br>*Nota:* Se omiten los hogares donde la condición del adulto mayor no fue especificada.
+    </span>"
+  ) %>% 
+  add_header_above(c(" " = 1, "Guerrero" = 2, "Sinaloa" = 2)) %>% 
+  column_spec(1, width = "10em")
+```
+
+A pesar de una ligera disparidad en el número de hogares envejecidos, en este
+nivel de desagrupación, los matices sociales de cada región resaltan nuevamente, 
+pues el punto más destacable es que en más de la mitad de estos hogares en Guerrero
+el adulto mayor no trabaja, ni está jubilado o pensionado, situación que refleja
+la poca libertad económica que tienen y por ende una mayor dependencia con sus 
+familiares jovenes con los que residen, o de los que reciben apoyo en el caso de 
+vivir solos. Situación también presente en Sinaloa, pero en menor proporción.
+
+Como segunda actividad más predominante en Guerrero es aquella donde el o los adultos
+mayores de cada hogar continuan trabajando, mientras que en el caso de Sinaloa, este 
+es desplazado por hogares de actividad mixta, lo que representan un ligera mejoría
+en términos de calidad de envejecimiento en esta región.
+
+Finalmente, la tercer, y segunda categoría más destacable, es donde el o los adultos
+residentes están jubilados o pensionados, pues la proporción en Sinaloa casi triplica a
+la de Guerrero, esto significa que en el pasado las condiciones del mercado laboral
+fueron mejores en Sinaloa, o también que hay adultos mayores que han decidido 
+migrar a esta región para pasar el resto de sus años viviendo de su pensión, o de lo
+que han ahorrado a partir de sus años trabajando.
